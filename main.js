@@ -612,11 +612,11 @@
       tc.fillStyle = '#e0584d'; rr(tc, food[0] * Sz + 3, OY + food[1] * Sz + 3, Sz - 6, Sz - 6, 3); tc.fill();
       body.forEach((s, i) => { tc.fillStyle = i ? '#1aa3b3' : '#0e7f8d'; rr(tc, s[0] * Sz + 1, OY + s[1] * Sz + 1, Sz - 2, Sz - 2, 3); tc.fill(); });
       tc.textAlign = 'center';
-      if (!started && alive) { tc.fillStyle = '#2a2d33'; font(tc, 600, 26); tc.fillText('Press any direction to start', TW / 2, 258); }
+      if (!started && alive) { tc.fillStyle = '#2a2d33'; font(tc, 600, onPhone() ? 34 : 26); tc.fillText(onPhone() ? 'Swipe to start' : 'Press any direction to start', TW / 2, 258); }
       if (!alive) {
         tc.fillStyle = 'rgba(244,245,247,.88)'; tc.fillRect(0, OY, TW, TH - OY);
         tc.fillStyle = '#2a2d33'; font(tc, 700, 44); tc.fillText('Game over', TW / 2, 250);
-        tc.fillStyle = '#7a808a'; font(tc, 500, 20); tc.fillText(`Score ${score}. Press A to try again.`, TW / 2, 290);
+        tc.fillStyle = '#7a808a'; font(tc, 500, 20); tc.fillText(onPhone() ? `Score ${score}. Tap to play again.` : `Score ${score}. Press A to try again.`, TW / 2, 290);
       }
       tc.textAlign = 'left';
     }
@@ -644,7 +644,7 @@
       if (k === 'a') { reset(); started = true; redraw(); return true; }
       return false;
     }
-    return { start() { reset(); clearInterval(timer); timer = setInterval(tick, 95); }, stop() { clearInterval(timer); }, draw, drawPad, key: onKey };
+    return { start() { reset(); clearInterval(timer); timer = setInterval(tick, 95); }, stop() { clearInterval(timer); }, draw, drawPad, key: onKey, over: () => !alive };
   })();
 
   /* ======================= navigation ======================= */
@@ -1155,7 +1155,7 @@
       flatB(0.52, 0.07, 0.02, stripM, 3.87, HY + 0.02, 0.036); flatB(0.66, 0.04, 0.02, grey, 3.87, HY - 0.09, 0.036); }
     { const tc2 = mk(300, 64), tx3 = tc2.getContext('2d'); tx3.fillStyle = 'rgba(18,18,18,.82)'; tx3.font = `600 34px ${FONT}`; tx3.textAlign = 'center'; tx3.fillText('4.6V ⎓ IN', 150, 44);
       wall(tc2, 0.86, 0.184, 3.87, 0.12, BZ - 0.034, Math.PI); }
-    box(2.56, 0.022, 0.02, bevM, -4.17, -0.022, BZ - 0.03); box(7.86, 0.022, 0.02, bevM, 1.52, -0.022, BZ - 0.03); // (broken where the stylus hole passes through)
+    box(2.56, 0.022, 0.02, bevM, -4.17, -0.022, BZ - 0.03); box(0.46, 0.022, 0.02, bevM, -2.18, -0.022, BZ - 0.03); box(3.5, 0.022, 0.02, bevM, 3.7, -0.022, BZ - 0.03); // (broken where the stylus hole and the card slot pass through)
                                                                               // the bright line where the plate folds under
     // finger notch scooped out of the underside below the card slot
     // the metal strip arches up onto the underside over the card slot, with one screw in it
@@ -1171,7 +1171,7 @@
       const rimM = new THREE.MeshStandardMaterial({ color: 0xa9a6a0, roughness: 0.3, metalness: 0.9 }); rimM.color.convertSRGBToLinear(); add(device, rimG, rimM, 0, 0, BZ);
       const ng = new THREE.CircleGeometry(1, 48, 0, Math.PI).rotateX(HALF); const hole = add(device, ng, notchDark, 0, -0.004, BZ - 0.005); hole.scale.set(NX, 1, NZ); } // the empty slot, seen through the bite when the card is out. Seated, the card itself covers it.
     // game card: a real card that ejects, flies up to the camera and flips over to show its label
-    box(3.86, 0.36, 0.02, blk, 0, 0.15, BZ - 0.032);                 // the card slot: open right down to the plate's bottom edge, so the card's end and its underside (seen through the bite) are one piece
+    box(3.86, 0.34, 0.02, blk, 0, 0.142, BZ - 0.032);                 // the card slot: open right down to the plate's bottom edge, so the card's end and its underside (seen through the bite) are one piece
     const CW = 3.5, CH = 3.8, CT = 0.3; // a chunky card, as thick as the real one looks in its slot
     const cs = new THREE.Shape(); { const w = CW / 2, h = CH / 2, r = 0.16;
       cs.moveTo(-w + r, -h); cs.lineTo(w - r, -h); cs.quadraticCurveTo(w, -h, w, -h + r);
@@ -1219,7 +1219,7 @@
     bx.save(); bx.translate(256, 486); bx.rotate(Math.PI); bx.textAlign = 'center'; bx.fillStyle = '#23262b'; bx.font = `700 46px ${FONT}`; bx.fillText('PETAR', -40, 16); bx.fillStyle = '#c0392b'; bx.beginPath(); bx.arc(86, 0, 22, 0, 7); bx.fill(); bx.restore(); // reads the right way up through the bite
     const bg = new THREE.PlaneGeometry(3.3, 3.6); bg.rotateX(HALF);
     const bk = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bkCv) })); bk.position.y = -CT / 2 - 0.004; card.add(bk);
-    const slotA = new THREE.Object3D(); slotA.position.set(0, CT / 2 - 0.014, BZ + CH / 2 - 0.075); device.add(slotA); // seated: only the card's end shows, just inside the slot's rim
+    const slotA = new THREE.Object3D(); slotA.position.set(0, CT / 2 - 0.032, BZ + CH / 2 - 0.075); device.add(slotA); // seated: only the card's end shows, just inside the slot's rim
     let cu = 0, ct = 0;
     const cardAct = () => {
       ct = ct ? 0 : 1;
@@ -1691,7 +1691,12 @@
   let lastHover = null; // a prop that reacts to the pointer being over it
   let padDrag = null;
   // a touch that starts on a scrollable top screen scrolls that page, not the document (which would move the lid)
-  canvas.addEventListener('touchstart', (e) => { if (padMax > 0 && openness() > 0.9) { const p = pick(e.touches[0]); if (p && p.top) e.preventDefault(); } }, { passive: false });
+  canvas.addEventListener('touchstart', (e) => {
+    if (openness() <= 0.9) return;
+    if (S.sec && S.sec.game) { e.preventDefault(); return; }                                    // in Snake a swipe steers, so it must not scroll the page
+    if (padMax > 0) { const p = pick(e.touches[0]); if (p && p.top) e.preventDefault(); }
+  }, { passive: false });
+  let swipe = null; // Snake on a touch screen: swipe anywhere to turn
   let drag = null, dragFn = null; // dragFn: a part being slid (e.g. the volume knob)
   canvas.addEventListener('pointerdown', (e) => {
     const p = pick(e);
@@ -1702,6 +1707,10 @@
     if (p && p.prop && p.prop.userData.stick) { stick = true; stickTo(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); return; }
     if (p && p.prop && p.prop.userData.drag) { dragFn = p.prop.userData.drag; dragFn(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); return; }
     if (p && p.prop) { p.prop.userData.act(p.uv); return; }
+    if (e.pointerType === 'touch' && S.sec && S.sec.game && openness() > 0.9) { // a finger down during Snake starts a swipe, wherever it lands
+      swipe = { x: e.clientX, y: e.clientY, moved: false, region: p && p.region, top: !!(p && p.top) };
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ } return;
+    }
     if (!p) return; // only a press that lands on the console can grab and turn it
     drag = { x: e.clientX, y: e.clientY, yaw: goal.yaw, pitch: goal.pitch, moved: false, region: p && p.region };
     canvas.setPointerCapture(e.pointerId);
@@ -1711,6 +1720,11 @@
     if (padDrag) { // screen pixels per CSS pixel, from how big the top screen is drawn
       const per = TW / (10.9 * innerHeight / (2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))));
       padScroll = Math.max(0, Math.min(padMax, padDrag.s - (e.clientY - padDrag.y) * per)); if (reduced) drawTop(); return;
+    }
+    if (swipe) { // turn as soon as the finger has travelled far enough, then measure the next turn from there
+      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) > 22) { key(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); swipe.x = e.clientX; swipe.y = e.clientY; swipe.moved = true; }
+      return;
     }
     if (sliding) { slideTo(e); return; }
     if (stick) { stickTo(e); return; }
@@ -1732,6 +1746,11 @@
     canvas.classList.toggle('point', !!(p && (p.button || p.region || p.slider || p.prop)));
   });
   const endDrag = (e) => {
+    if (swipe) { // no travel means it was a tap: press whatever is under it, or restart after a game over
+      const w = swipe; swipe = null; try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+      if (!w.moved) { if (w.region) w.region.fn(); else if (S.sec && S.sec.game && snake.over()) key('a'); }
+      return;
+    }
     if (padDrag) { padDrag = null; try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ } return; }
     if (dragFn) { dragFn = null; canvas.classList.remove('grabbing'); try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ } return; }
     if (stick) { stick = false; stickDir = [null, null]; canvas.classList.remove('grabbing'); try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ } return; }
@@ -1745,7 +1764,7 @@
     try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
   };
   canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', () => { padDrag = null; dragFn = null; stick = false; sliding = false; drag = null; canvas.classList.remove('grabbing'); });
+  canvas.addEventListener('pointercancel', () => { swipe = null; padDrag = null; dragFn = null; stick = false; sliding = false; drag = null; canvas.classList.remove('grabbing'); });
 
   const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', a: 'a', b: 'b', x: 'x', y: 'y', Enter: 'a', ' ': 'a', Escape: 'b', Backspace: 'b', h: 'start', q: 'l', e: 'r' }; // the letters A, B, X, Y press the buttons with those letters
   addEventListener('keydown', (e) => {
