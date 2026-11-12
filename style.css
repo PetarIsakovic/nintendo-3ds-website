@@ -1,0 +1,127 @@
+:root {
+  --bg: #f1ece1;
+  --ink: #16191c;
+  --ink2: #666b72;
+  --line: rgba(22, 25, 28, .14);
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; overflow-x: hidden;
+  /* warm paper with a faint pattern of d-pad crosses and button rings, tinted with the console's teal */
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 13px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+/* a soft light behind the model, over the pattern */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  /* fixed to the window, so the pattern stays put while the page scrolls */
+  background: radial-gradient(60vw 54vh at 50% 50%, rgba(255, 255, 255, .85), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' fill='none' stroke='%23117587' stroke-opacity='.16' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M14 8v12M8 14h12'/%3E%3Ccircle cx='42' cy='42' r='4.5'/%3E%3C/svg%3E") 0 0 / 56px 56px;
+}
+
+#gl { position: fixed; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: default; outline: none; }
+#gl.grab { cursor: grab; }
+#gl.grabbing { cursor: grabbing; }
+#gl.point { cursor: pointer; }
+
+.hud { position: fixed; left: 0; right: 0; z-index: 2; pointer-events: none; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; opacity: 0; animation: fade .9s ease .5s forwards; }
+.hud a, .hud h1 { pointer-events: auto; }
+.top { top: 0; padding: max(22px, env(safe-area-inset-top)) 28px 0; }
+.top h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.top nav { display: flex; gap: 22px; margin-left: auto; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* for screen readers and search engines only */
+.top nav a { position: relative; padding-bottom: 4px; color: var(--ink2); text-decoration: none; font-weight: 500; transition: color .2s; }
+/* underline that sweeps in from the left on hover, and back out to the right when you leave */
+.top nav a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: right; transition: transform .22s ease-out; }
+.top nav a:hover::after, .top nav a:focus-visible::after { transform: scaleX(1); transform-origin: left; }
+.top nav a:hover { color: var(--ink); }
+
+.bottom { bottom: 0; align-items: flex-end; padding: 0 28px max(22px, env(safe-area-inset-bottom)); color: var(--ink2); }
+.bottom p { margin: 0; }
+.role { max-width: 34ch; }
+.hint { text-align: right; }
+.hint span { color: var(--ink); }
+.opened { display: none; }
+body.open .opened { display: block; }
+body.open .closed { display: none; }
+.scrollcue { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 2; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--ink2); font-size: 12px; letter-spacing: .04em; pointer-events: none; opacity: 0; animation: fade .9s ease .9s forwards; transition: opacity .3s; }
+.scrollcue i { width: 1px; height: 34px; background: linear-gradient(var(--ink2), transparent); transform-origin: top; animation: cue 1.8s ease-in-out infinite; }
+body.moved .scrollcue { opacity: 0 !important; animation: none; }
+
+.fallback { position: fixed; inset: 0; z-index: 3; display: grid; place-content: center; max-width: 560px; margin: auto; padding: 24px; text-align: center; }
+.fallback[hidden] { display: none; }
+.fallback h2 { font-size: 40px; font-weight: 700; letter-spacing: -.03em; margin: 0 0 12px; }
+.fallback p { color: var(--ink2); font-size: 16px; line-height: 1.5; }
+
+/* the page is just a scroll track: scrolling opens the lid */
+.track { height: 340vh; }
+
+@keyframes fade { to { opacity: 1; } }
+@keyframes cue { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
+
+@media (max-width: 700px) {
+  .top, .bottom { padding-left: 18px; padding-right: 18px; }
+  .top nav { gap: 14px; }
+  .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hud, .scrollcue { animation-duration: .01s; animation-delay: 0s; } .scrollcue i { animation: none; } }
+
+/* the outer camera 'takes a photo' */
+body.flash::after { content: ""; position: fixed; inset: 0; z-index: 5; background: #fff; pointer-events: none; animation: flash .45s ease-out forwards; }
+@keyframes flash { from { opacity: .9; } to { opacity: 0; } }
+
+/* the music player: a spinning disc with previous / next beside it and the title underneath. No card, no chrome. */
+.np { position: fixed; left: 28px; bottom: 26px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 230px; color: var(--ink); animation: sheet .35s ease-out; }
+.np-row { display: flex; align-items: center; gap: 14px; }
+.np button { border: 0; background: none; padding: 0; color: inherit; cursor: pointer; font: inherit; -webkit-tap-highlight-color: transparent; }
+.np-row > button:not(.np-disc) { width: 34px; height: 34px; display: grid; place-items: center; opacity: .8; transition: opacity .2s, transform .2s; }
+.np-row > button:not(.np-disc):hover { opacity: 1; transform: scale(1.12); }
+.np svg { width: 20px; height: 20px; fill: currentColor; }
+.np .np-disc { position: relative; width: 84px; height: 84px; border-radius: 50%; background: #23262b center / cover no-repeat; box-shadow: 0 6px 18px rgba(22, 25, 28, .28), inset 0 0 0 1px rgba(255, 255, 255, .25); } /* turned from the script, so pausing leaves it exactly where it was */
+.np-disc::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 3px, rgba(255, 255, 255, .07) 3px 4px), conic-gradient(from 20deg, rgba(255, 255, 255, .22), transparent 18%, transparent 50%, rgba(255, 255, 255, .2) 62%, transparent 78%); }
+.np-disc::after { content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 3px rgba(0, 0, 0, .25); }
+.np p { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.np-t { font-size: 13px; font-weight: 500; letter-spacing: .09em; text-transform: uppercase; }
+.np-t::before { content: "\266A"; margin-right: 8px; }
+.np-by { font-size: 12px; color: var(--ink2); }
+.np-x { font-size: 11px !important; letter-spacing: .06em; text-transform: uppercase; color: var(--ink2) !important; opacity: 0; transition: opacity .2s; }
+.np:hover .np-x, .np-x:focus-visible { opacity: 1; }
+.np-yt { position: fixed; left: -4000px; top: 0; width: 200px; height: 200px; } /* the sound comes from here; it is kept off-screen */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes sheet { from { transform: translateY(24px); opacity: 0; } }
+@media (max-width: 700px) and (orientation: portrait) {
+  .np { left: 50%; margin-left: -115px; bottom: max(14px, env(safe-area-inset-bottom)); gap: 6px; }
+  .np .np-disc { width: 64px; height: 64px; }
+  .np-x { opacity: 1; }
+}
+
+/* the Konami code: stickers flying over the whole page */
+.burst { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; }
+
+/* exploded view: numbered dots that follow the parts, and a compact key (names only; the chosen part's details show under the list) */
+.xp { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+.xp[hidden] { display: none; }
+.xp-dot { position: absolute; left: -13px; top: -13px; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: var(--ink); border: 1.5px solid var(--ink); font: 600 13px/23px var(--sans); text-align: center; font-style: normal; box-shadow: 0 2px 8px rgba(22, 25, 28, .2); will-change: transform; pointer-events: auto; cursor: pointer; }
+.xp-dot.on { background: var(--ink); color: #fff; }
+.xp-key { position: absolute; right: 22px; top: 62px; width: 232px; max-height: calc(100vh - 84px); max-height: calc(100dvh - 84px); overflow-y: auto; pointer-events: auto; }
+.xp-key p { margin: 0 0 6px; font: 600 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink2); }
+.xp-key ol { margin: 0; padding: 0; list-style: none; counter-reset: xp; }
+.xp-key li { counter-increment: xp; position: relative; padding: 5px 0 5px 30px; border-top: 1px solid var(--line); cursor: pointer; }
+.xp-key li::before { content: counter(xp); position: absolute; left: 0; top: 5px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--ink); font: 600 11px/18px var(--sans); text-align: center; }
+.xp-key li.on::before { background: var(--ink); color: #fff; }
+.xp-key b { font-weight: 500; } .xp-key li.on b { font-weight: 700; }
+.xp-key .xp-desc { margin: 8px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); min-height: 4.2em; font: 11.5px/1.45 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0; text-transform: none; color: var(--ink2); }
+.xp-key button { font: 600 12.5px var(--sans); color: var(--ink); background: #fff; border: 1.5px solid var(--ink); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+.xp-key button:hover { background: var(--ink); color: #fff; }
+/* small windows and phones: the key becomes a panel along the bottom, names in three columns */
+@media (max-width: 900px), (max-height: 620px) {
+  .xp-key { left: 10px; right: 10px; top: auto; bottom: max(10px, env(safe-area-inset-bottom)); width: auto; max-height: 44vh; background: rgba(241, 236, 225, .95); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+  .xp-key > p:first-child { display: none; }
+  .xp-key ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 10px; }
+  .xp-key li { border: 0; padding: 4px 0 4px 24px; font-size: 12px; line-height: 1.25; }
+  .xp-key li::before { top: 3px; width: 17px; height: 17px; font-size: 10px; line-height: 15px; }
+  .xp-key .xp-desc { min-height: 3em; margin: 6px 0 8px; }
+  .xp-dot { left: -11px; top: -11px; width: 22px; height: 22px; font-size: 11px; line-height: 19px; }
+}

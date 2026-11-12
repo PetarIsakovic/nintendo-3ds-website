@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Petar Isakovic</title>
+<meta name="description" content="Petar Isakovic — software engineering student at the University of Waterloo, intern at StackAdapt, 4× hackathon winner and co-founder of GooseHacks.">
+<meta property="og:title" content="Petar Isakovic">
+<meta property="og:description" content="Software engineer, game dev, 4× hackathon winner. Scroll to open the handheld.">
+<meta name="theme-color" content="#f1ece1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='9' y='3' width='46' height='27' rx='6' fill='%23117587'/><rect x='15' y='8' width='34' height='17' rx='2.5' fill='%23e9f6f8'/><rect x='11' y='29' width='42' height='5' rx='2.5' fill='%230c5a69'/><rect x='9' y='33' width='46' height='28' rx='6' fill='%231aa3b3'/><rect x='23' y='38' width='18' height='14' rx='2.5' fill='%23e9f6f8'/><path d='M12.500 46h7M16 42.500v7' stroke='%23e9f6f8' stroke-width='2.600' stroke-linecap='round'/><circle cx='47' cy='43' r='2.200' fill='%23e9f6f8'/><circle cx='51' cy='48' r='2.200' fill='%23e9f6f8'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="gl" aria-label="Interactive 3D handheld console showing Petar Isakovic's portfolio"></canvas>
+
+<header class="hud top">
+  <h1 class="sr">Petar Isakovic</h1>
+  <nav>
+    <a href="https://www.linkedin.com/in/petar-isakovic" target="_blank" rel="noopener">LinkedIn</a>
+    <a href="https://github.com/PetarIsakovic" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://x.com/PetarIsakovic06" target="_blank" rel="noopener">X</a>
+    <a href="https://devpost.com/PetarIsakovic" target="_blank" rel="noopener">Devpost</a>
+  </nav>
+</header>
+<div class="scrollcue" aria-hidden="true">Scroll to open<i></i></div>
+
+<div class="track" aria-hidden="true"></div>
+
+<!-- shown only if WebGL is unavailable -->
+<main class="fallback" id="fallback" hidden>
+  <h2>Petar Isakovic</h2>
+  <p>Software Engineering student at the University of Waterloo and software engineering intern at StackAdapt. 4× hackathon winner, co-founder of GooseHacks, and shipped features to a mobile game with 15M+ downloads.</p>
+  <p>This page is normally an interactive 3D handheld, which needs WebGL. The links above have everything else.</p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="stickers.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
