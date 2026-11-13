@@ -221,7 +221,7 @@
       kids.push(it.bullets ? h('ul', '', it.body.map((b) => t('li', '', b))) : h('div', 'os-text', it.body.map((b) => t('p', '', b))));
       if (it.chips) kids.push(h('p', 'os-chips', it.chips.map((c) => t('span', '', c))));
       if (it.shots) kids.push(h('div', 'os-shots' + (it.tall ? ' tall' : ''), it.shots.map((k) => pic(k))));
-      const extra = [].concat(it.tight ? [it.img, 'cheque', 'four'] : [], it.gallery ? it.gallery.map((g) => g[0]) : [], it.more || [], it.rowExtra || []).filter((k, q, a) => k && a.indexOf(k) === q && !(k === it.img && !it.tight));
+      const extra = [].concat(it.tight ? [it.img, 'cheque', 'four'] : [], it.gallery ? it.gallery.map((g) => g[0]) : [], it.more || [], it.rowExtra || []).filter((k, q, a) => k && k !== 'huskies' && a.indexOf(k) === q && !(k === it.img && !it.tight)); // (the high-school logo is left off the phone version)
       if (extra.length) kids.push(h('div', 'os-stickers', extra.map((k, q) => { const e = pic(k); if (e) e.style.transform = `rotate(${q % 2 ? 2.5 : -2.5}deg)`; return e; })));
       if (it.links) kids.push(h('div', 'os-btns', it.links.map(([l, u]) => btn('os-btn', [t('span', '', 'Open ' + l), t('i', '', '↗')], () => openUrl(u)))));
       if (n > 1) kids.push(h('div', 'os-pn', [i > 0 ? btn('', [t('small', '', '‹ Previous'), t('b', '', sec.items[i - 1].label)], () => swap(page(sec, i - 1))) : h('span'), i < n - 1 ? btn('', [t('small', '', 'Next ›'), t('b', '', sec.items[i + 1].label)], () => swap(page(sec, i + 1))) : h('span')]));
