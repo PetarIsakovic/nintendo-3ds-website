@@ -13,14 +13,16 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches || /[?&]still\b/.test(location.search);
   const phone = matchMedia('(max-width: 700px) and (orientation: portrait)'); // phones get a close-up of the screens and larger type on them
   const onPhone = () => phone.matches;
+  // Phones do not get the 3D console. They get what runs on it, full screen: the startup animation, the icon menu, and pages
+  // you tap into, all as ordinary page elements (real text, native scrolling). ?3d on the address forces the console instead.
+  const APP = phone.matches && !/[?&]3d\b/.test(location.search);
   let renderer;
   try {
     if (!window.THREE) throw new Error('three.js failed to load');
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   } catch (e) {
-    canvas.remove();
-    document.getElementById('fallback').hidden = false;
-    return;
+    canvas.remove(); renderer = null;
+    if (!APP) { document.getElementById('fallback').hidden = false; return; } // (the phone version still works without WebGL: it just runs full screen, without the device around it)
   }
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -51,7 +53,7 @@
       { label: 'Heseri Games', kicker: 'MAY – AUG 2025', title: 'Heseri Games', sub: 'Mobile Game Developer · game published by Voodoo', bullets: true,
         body: ['Shipped gameplay, progression and monetization features for Epic Plane Evolution, a mobile game with 15M+ downloads on iOS and Android.', 'Built offline earnings, chase-camera behaviour, ragdoll physics and rocket boosts in Unity and C#. Revenue went up 10%.', 'Wrote a stall-aware rocket boost that scales thrust by angle of attack every FixedUpdate. A/B tested at +8% day-3 retention.'],
         chips: ['Unity', 'C#', 'iOS', 'Android'] },
-      { label: 'GooseHacks', kicker: 'CO-FOUNDER', title: 'GooseHacks', sub: 'A 200+ person hackathon in Waterloo', bullets: true,
+      { label: 'GooseHacks', kicker: 'MAY – AUG 2023', title: 'GooseHacks', sub: 'Co-founder · a 200+ person hackathon in Waterloo', bullets: true,
         body: ['Started with no budget, no brand and no sponsor contacts.', 'Raised $10K+ from Desmos, 1Password and Unity, and built the website.'],
         links: [['Website', 'https://goosehacks.netlify.app/']] },
       { label: 'UWaterloo', kicker: '2024 – 2029', title: 'University of Waterloo', sub: 'Software Engineering', bullets: true,
@@ -110,6 +112,262 @@
     ['t_fastapi', 572, 372, 78, -0.2], ['t_firebase', 670, 368, 86, 0.08], ['t_java', 748, 372, 80, -0.15],
   ];
   SECTIONS[3].items[1].gallery = [['waterloo', 610, 168, 150, 150], ['huskies', 610, 328, 250, 170]]; // Scholarships: university and high school
+
+  /* ======================= phone: the console's software, full screen ======================= */
+  if (APP) { phoneApp(); return; }
+  function phoneApp() {
+    document.documentElement.classList.add('app'); if (renderer) document.documentElement.classList.add('dev'); // (set before the page is built, so the screen starts hidden; set later, it showed as a white box fading out)
+    const ST = window.STICKERS || {};
+    const h = (tag, cls, kids) => { const e = document.createElement(tag); if (cls) e.className = cls; (kids || []).forEach((k) => k && e.append(k)); return e; };
+    const t = (tag, cls, text) => { const e = h(tag, cls); e.textContent = text; return e; };
+    const pic = (k, cls) => { if (!ST[k]) return null; const e = h('img', cls); e.src = ST[k]; e.alt = ''; e.draggable = false; e.loading = 'lazy'; return e; };
+    const buzz = () => { try { if (navigator.vibrate) navigator.vibrate(6); } catch (e) { /* no haptics */ } };
+    const btn = (cls, kids, fn) => { const b = h('button', cls, kids); b.type = 'button'; b.addEventListener('click', () => { buzz(); fn(); }); return b; };
+    const clock = t('span', '', '');
+    const tick = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }); }; tick(); setInterval(tick, 15000);
+    const stage = h('div', 'os-stage');
+    const os = h('main', 'os', [h('header', 'os-bar', [t('b', '', 'Petar Isakovic'), h('span', 'os-right', [clock, h('i', 'os-batt')])]), stage]);
+    const boot = h('div', 'os-boot', [h('div', '', [t('h1', '', 'Petar Isakovic'), h('i', 'os-line'), h('p', '', [t('span', '', 'Starting up'), h('em', '', [h('u'), h('u'), h('u')])])])]);
+    os.append(boot); document.body.append(os);
+    const startBoot = () => { os.classList.add('on'); setTimeout(() => { boot.classList.add('done'); os.classList.add('ready'); }, reduced ? 60 : 2900); setTimeout(() => boot.remove(), reduced ? 500 : 3800); };
+
+    // views slide in from the right and back out again; the phone's own back gesture works too
+    const stack = [];
+    function push(v) {
+      const prev = stack[stack.length - 1]; v.classList.add('right'); stage.append(v); void v.offsetWidth; v.classList.remove('right');
+      if (prev) prev.classList.add('left'); stack.push(v); setFoc(-1);
+      if (stack.length > 1) history.pushState({ depth: stack.length }, '');
+    }
+    function pop() {
+      if (stack.length < 2) return; const v = stack.pop(), prev = stack[stack.length - 1];
+      if (v.leave) v.leave(); v.classList.add('right'); prev.classList.remove('left'); setTimeout(() => v.remove(), 380); setFoc(-1);
+    }
+    addEventListener('popstate', (e) => { const d = (e.state && e.state.depth) || 1; while (stack.length > d) pop(); });
+    // the device's buttons drive the same screens: the D-pad moves a highlight (or scrolls a page), A opens, B goes back, START goes home
+    let foc = -1;
+    const cur = () => stack[stack.length - 1];
+    const items = () => (cur() ? [...cur().querySelectorAll('.os-tile, .os-row')] : []);
+    function setFoc(i) { foc = i; items().forEach((e, k) => e.classList.toggle('foc', k === i)); const e = items()[i]; if (e) e.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    // Up Up Down Down Left Right Left Right B A Start, on the device's own buttons
+    const KON = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a', 'start']; let kp = 0, onCheat = () => {}, bursting = false, spr = null;
+    function cheat() {
+      onCheat();
+      const tag = t('div', 'os-cheat', 'Cheat unlocked  ·  +30 lives'); os.append(tag); setTimeout(() => tag.remove(), 4200);
+      if (reduced || bursting) return; bursting = true;
+      const keys = Object.keys(ST).filter((k) => !k.startsWith('s_') && k !== 'photo');
+      const ready = spr ? Promise.resolve(spr) : Promise.all(keys.map((k) => new Promise((res) => { const im = new Image(); im.onload = () => { const sc = 120 / Math.max(im.naturalWidth, im.naturalHeight), c = document.createElement('canvas'); c.width = Math.max(1, im.naturalWidth * sc | 0); c.height = Math.max(1, im.naturalHeight * sc | 0); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c); }; im.onerror = () => res(null); im.src = ST[k]; }))).then((l) => (spr = l.filter(Boolean)));
+      ready.then((SPR) => { // stickers burst out of the device across the whole display, bounce, then fall away
+        const cv = document.createElement('canvas'); cv.className = 'burst'; document.body.append(cv);
+        const dpr = Math.min(1.5, devicePixelRatio || 1), W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; const c = cv.getContext('2d'), R = (a, b) => a + Math.random() * (b - a), P = [];
+        for (let n = 0; n < 70; n++) { const g = SPR[n % SPR.length], an = R(0, 6.28), sp = R(300, 1300), sz = R(34, 78) / Math.max(g.width, g.height); P.push({ g, x: W / 2, y: H * 0.42, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 380, w: g.width * sz, h: g.height * sz, r: R(0, 6.3), vr: R(-7, 7), born: n < 44 ? R(0, 0.15) : R(0.5, 1.8), hits: 0 }); }
+        let t0 = 0, last = 0; const LIFE = 6.5;
+        (function step(now) { if (!t0) t0 = last = now; const tt = (now - t0) / 1000, dt = Math.min(0.033, (now - last) / 1000); last = now;
+          if (tt > LIFE) { cv.remove(); bursting = false; return; }
+          c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); const floor = tt < LIFE - 2.2;
+          for (const q of P) { if (tt < q.born || q.y > H + 150) continue; q.vy += 1500 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.r += q.vr * dt; const hh = Math.max(q.w, q.h) / 2;
+            if (q.x < hh && q.vx < 0) { q.x = hh; q.vx *= -0.7; } else if (q.x > W - hh && q.vx > 0) { q.x = W - hh; q.vx *= -0.7; }
+            if (floor && q.y > H - hh && q.vy > 0) { q.y = H - hh; q.vy *= -(q.hits++ < 3 ? 0.55 : 0.2); q.vx *= 0.8; }
+            const co = Math.cos(q.r) * dpr, si = Math.sin(q.r) * dpr; c.setTransform(co, si, -si, co, q.x * dpr, q.y * dpr); c.drawImage(q.g, -q.w / 2, -q.h / 2, q.w, q.h); }
+          requestAnimationFrame(step); })(performance.now());
+      });
+    }
+    function ctl(k) {
+      if (!os.classList.contains('ready')) return;
+      { if (k === KON[kp] || (kp === KON.length - 1 && k === 'a')) kp++; else kp = k === 'up' ? (kp === 2 ? 2 : 1) : 0;
+        if (kp > 8) { if (kp === KON.length) { kp = 0; cheat(); } return; } }  // the B, A, Start that finish the code do not also navigate
+      const v = cur(), it = items();
+      if (k === 'b') { if (stack.length > 1) back(); return; }
+      if (k === 'start') { if (stack.length > 1) history.go(1 - stack.length); return; }
+      if (v.ctl && v.ctl(k)) return;
+      if (it.length) {
+        const cols = v.classList.contains('os-home') ? 2 : 1, d = { up: -cols, down: cols, left: cols > 1 ? -1 : 0, right: cols > 1 ? 1 : 0 }[k];
+        if (k === 'a') { if (foc < 0) setFoc(0); else it[foc].click(); } else if (d) { if (foc < 0) setFoc(0); else { const n = foc + d, sameRow = Math.abs(d) !== 1 || Math.floor(n / cols) === Math.floor(foc / cols); if (n >= 0 && n < it.length && sameRow) setFoc(n); } } // at an edge it simply stops
+        return;
+      }
+      if (k === 'up' || k === 'down') v.scrollBy({ top: k === 'up' ? -190 : 190, behavior: 'smooth' });
+      else if (k === 'left' || k === 'right') { const b = [...v.querySelectorAll('.os-pn button')].find((q) => q.textContent.includes(k === 'left' ? 'Previous' : 'Next')); if (b) b.click(); }
+      else if (k === 'a') { const b = v.querySelector('.os-btn'); if (b) b.click(); }
+    }
+    const back = () => history.back();
+    const view = (title, right, kids) => h('section', 'os-view', [h('div', 'os-head', [btn('os-back', [t('span', '', '‹'), t('b', '', 'Back')], back), t('strong', '', title), t('span', 'os-count', right || '')]), h('div', 'os-body', kids)]);
+
+    // ---- home: the icon menu
+    const ICON = ['petar', 'stackadapt', 'oyster', 'cheque', null, 'linkedin'];
+    const snakeIcon = () => h('span', 'os-snake', [h('i'), h('i'), h('i'), h('i'), h('i'), h('b')]);
+    const home = h('section', 'os-view os-home', [h('div', 'os-grid', SECTIONS.map((sec, n) => btn('os-tile', [h('span', 'os-ico', [ICON[n] ? pic(ICON[n]) : snakeIcon()]), t('b', '', sec.label), t('small', '', sec.blurb)], () => push(section(sec))))),
+      h('footer', 'os-foot', [t('p', '', 'Software Engineering, University of Waterloo'), h('nav', '', SECTIONS[5].items.map((it) => { const a = t('a', '', it.label); a.href = it.links[0][1]; a.target = '_blank'; a.rel = 'noopener'; return a; }))])]);
+    push(home);
+
+    // ---- a section: its list of entries (or the game, or the contact links)
+    function section(sec) {
+      if (sec.game) return snakeView();
+      if (sec.id === 'contact') return view('Contact', '', [h('div', 'os-links', sec.items.map((it) => btn('os-row', [h('span', 'os-th', [pic(it.img)]), h('span', 'os-rt', [t('b', '', it.label), t('small', '', it.sub)]), t('span', 'os-go', '↗')], () => openUrl(it.links[0][1]))))]);
+      return view(sec.label, sec.items.length + (sec.items.length === 1 ? ' entry' : ' entries'), [h('div', 'os-list', sec.items.map((it, i) =>
+        btn('os-row', [h('span', 'os-th', [pic(it.thumb || it.img) || t('em', '', it.label[0])]), h('span', 'os-rt', [t('b', '', it.label), t('small', '', (it.kicker || '').replace(/^1ST OVERALL · /, ''))]), it.win ? t('span', 'os-win', '1st') : null, t('span', 'os-go', '›')], () => push(page(sec, i)))))]);
+    }
+
+    // ---- one entry, laid out for reading
+    function page(sec, i) {
+      const it = sec.items[i], n = sec.items.length, kids = [];
+      if (it.label === 'Bio') kids.push(pic('photo', 'os-photo'));
+      else if (it.img && !it.tight) kids.push(h('div', 'os-hero', [pic(it.img), it.corner2 ? pic(it.corner2) : null]));
+      if (it.kicker) kids.push(t('p', 'os-kick', it.kicker));
+      kids.push(t('h2', '', it.title)); if (it.sub) kids.push(t('p', 'os-sub', it.sub));
+      kids.push(it.bullets ? h('ul', '', it.body.map((b) => t('li', '', b))) : h('div', 'os-text', it.body.map((b) => t('p', '', b))));
+      if (it.chips) kids.push(h('p', 'os-chips', it.chips.map((c) => t('span', '', c))));
+      if (it.shots) kids.push(h('div', 'os-shots' + (it.tall ? ' tall' : ''), it.shots.map((k) => pic(k))));
+      const extra = [].concat(it.tight ? [it.img, 'cheque', 'four'] : [], it.gallery ? it.gallery.map((g) => g[0]) : [], it.more || [], it.rowExtra || []).filter((k, q, a) => k && a.indexOf(k) === q && !(k === it.img && !it.tight));
+      if (extra.length) kids.push(h('div', 'os-stickers', extra.map((k, q) => { const e = pic(k); if (e) e.style.transform = `rotate(${q % 2 ? 2.5 : -2.5}deg)`; return e; })));
+      if (it.scatter) kids.push(h('div', 'os-logos', it.scatter.map(([k, , , , rot]) => { const e = pic(k); if (e) e.style.transform = `rotate(${rot}rad)`; return e; })));
+      if (it.links) kids.push(h('div', 'os-btns', it.links.map(([l, u]) => btn('os-btn', [t('span', '', 'Open ' + l), t('i', '', '↗')], () => openUrl(u)))));
+      if (n > 1) kids.push(h('div', 'os-pn', [i > 0 ? btn('', [t('small', '', '‹ Previous'), t('b', '', sec.items[i - 1].label)], () => swap(page(sec, i - 1))) : h('span'), i < n - 1 ? btn('', [t('small', '', 'Next ›'), t('b', '', sec.items[i + 1].label)], () => swap(page(sec, i + 1))) : h('span')]));
+      return view(sec.label, (i + 1) + ' / ' + n, kids);
+    }
+    function swap(v) { const was = stack.pop(); stage.append(v); stack.push(v); was.remove(); } // previous / next replace the page in place, so Back still returns to the list
+
+    // ---- Snake: swipe to steer
+    function snakeView() {
+      const N = 18, cv = h('canvas', 'os-game'); cv.width = cv.height = N * 24; const c = cv.getContext('2d');
+      const score = t('b', '', '0'), bestEl = t('span', '', ''), msg = t('p', 'os-gmsg', 'Swipe to start');
+      let body, dir, q, food, alive, started, pts, best = +store.get('snake-best') || 0, timer = 0;
+      const place = () => { do { food = [Math.random() * N | 0, Math.random() * N | 0]; } while (body.some((b) => b[0] === food[0] && b[1] === food[1])); };
+      const draw = () => {
+        c.fillStyle = '#f3f5f8'; c.fillRect(0, 0, cv.width, cv.height); c.fillStyle = '#e9ecf1';
+        for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) if ((x + y) % 2) c.fillRect(x * 24, y * 24, 24, 24);
+        const cell = (p, pad, col) => { c.fillStyle = col; c.beginPath(); c.roundRect ? c.roundRect(p[0] * 24 + pad, p[1] * 24 + pad, 24 - pad * 2, 24 - pad * 2, 5) : c.rect(p[0] * 24 + pad, p[1] * 24 + pad, 24 - pad * 2, 24 - pad * 2); c.fill(); };
+        cell(food, 4, '#e0584d'); body.forEach((b, k) => cell(b, 1.5, k ? '#1aa3b3' : '#0e7f8d'));
+        score.textContent = pts; bestEl.textContent = 'Best ' + best; msg.textContent = !alive ? 'Game over. Tap to play again.' : started ? '' : 'Swipe to start';
+      };
+      const reset = () => { body = [[5, 9], [4, 9], [3, 9]]; dir = [1, 0]; q = []; alive = true; started = false; pts = 0; place(); draw(); };
+      const step = () => {
+        if (!alive || !started) return; if (q.length) dir = q.shift();
+        const hd = [body[0][0] + dir[0], body[0][1] + dir[1]];
+        if (hd[0] < 0 || hd[1] < 0 || hd[0] >= N || hd[1] >= N || body.some((b) => b[0] === hd[0] && b[1] === hd[1])) { alive = false; if (pts > best) { best = pts; store.set('snake-best', best); } buzz(); }
+        else { body.unshift(hd); if (hd[0] === food[0] && hd[1] === food[1]) { pts++; place(); } else body.pop(); }
+        draw();
+      };
+      const turn = (d) => { const last = q.length ? q[q.length - 1] : dir; if (d[0] !== -last[0] || d[1] !== -last[1]) q.push(d); started = true; };
+      let sw = null;
+      const v = view('Snake', '', [h('div', 'os-score', [h('span', '', [t('small', '', 'Score '), score]), bestEl]), h('div', 'os-gwrap', [cv, msg])]); v.classList.add('os-snakev'); // the board is sized to whatever room is left, so all of it is always on screen
+      v.addEventListener('pointerdown', (e) => { if (e.target.closest('.os-head')) return; sw = { x: e.clientX, y: e.clientY, moved: false }; });
+      v.addEventListener('pointermove', (e) => { if (!sw) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) { if (alive) turn(Math.abs(dx) > Math.abs(dy) ? [dx > 0 ? 1 : -1, 0] : [0, dy > 0 ? 1 : -1]); sw.x = e.clientX; sw.y = e.clientY; sw.moved = true; draw(); } });
+      const end = () => { if (sw && !sw.moved && !alive) reset(); sw = null; };
+      v.addEventListener('pointerup', end); v.addEventListener('pointercancel', () => { sw = null; });
+      v.classList.add('os-nosel'); reset(); timer = setInterval(step, 120); v.leave = () => clearInterval(timer);
+      v.ctl = (k) => { const d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[k]; if (d) { if (alive) turn(d); draw(); return true; } if (k === 'a') { reset(); return true; } return false; };
+      return v;
+    }
+
+    // ---- the device: a pocket handheld modelled in 3D and built to the phone's own proportions, so it fills the display.
+    // Its screen is the page above (real text, native scrolling); its buttons are real and drive it. It arrives showing its
+    // sticker-covered back, turns round, and powers on. Swipe across the body, or press SELECT, to flip it over again.
+    if (!renderer) { os.classList.add('full'); startBoot(); return; }
+    document.documentElement.classList.add('dev');
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.outputEncoding = THREE.sRGBEncoding;
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(24, 1, 1, 600), HALF = Math.PI / 2;
+    { const pm = new THREE.PMREMGenerator(renderer), env = new THREE.Scene(); env.background = new THREE.Color(0x2c3036);
+      const panel = (w, hh, x, y, z, c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); };
+      panel(34, 16, 0, 26, 10, 0xffffff); panel(18, 34, -28, 4, 12, 0xcfe6ee); panel(18, 34, 28, 0, 10, 0xfff0d8); panel(44, 12, 0, -24, 12, 0x4c5660);
+      scene.environment = pm.fromScene(env, 0.05).texture; pm.dispose(); }
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x90a0b0, 0.5)); { const dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.set(-8, 14, 20); scene.add(dl); }
+    const mat = (hex, r, m, extra) => { const mt = new THREE.MeshStandardMaterial(Object.assign({ color: hex, roughness: r, metalness: m }, extra || {})); mt.color.convertSRGBToLinear(); return mt; };
+    const flatM = (hex) => new THREE.MeshBasicMaterial({ color: hex });
+    const BODY = mat(0xcbc9c1, 0.55, 0.04, { envMapIntensity: 0.7 }), DARK = mat(0x2a2c31, 0.5, 0.1), GLASS = mat(0x5c606d, 0.45, 0.1, { envMapIntensity: 0.6 }), SOFT = mat(0x8a8d95, 0.75, 0.02), INSET = mat(0xb9b7af, 0.6, 0.03), BERRY = mat(0x9a1f56, 0.45, 0.08), NAVY = '#2c3080'; // the classic palette: warm grey shell, slate screen lens, berry buttons, navy print
+    const BW = 10, BH = Math.max(15, Math.min(24, BW * (innerHeight * 0.955) / (innerWidth * 0.93))), BT = 1.7; // as tall as the phone allows
+    const dev = new THREE.Group(); scene.add(dev);
+    const rrect = (w, hh, r, rbr) => { const sh = new THREE.Shape(), x = -w / 2, y = -hh / 2, R = rbr === undefined ? r : rbr; // rounded rectangle; the bottom-right corner can be rounder, as on the classic handhelds
+      sh.moveTo(x + r, y); sh.lineTo(x + w - R, y); sh.quadraticCurveTo(x + w, y, x + w, y + R); sh.lineTo(x + w, y + hh - r); sh.quadraticCurveTo(x + w, y + hh, x + w - r, y + hh); sh.lineTo(x + r, y + hh); sh.quadraticCurveTo(x, y + hh, x, y + hh - r); sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y); return sh; };
+    const put = (geo, m, x, y, z, par) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); (par || dev).add(o); return o; };
+    { const g = new THREE.ExtrudeGeometry(rrect(BW - 0.5, BH - 0.5, 0.8, 2.2), { depth: BT - 0.5, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.25, bevelSegments: 8, curveSegments: 24 }); g.center(); put(g, BODY, 0, 0, 0); }
+    const FZ = BT / 2, SHt = BH * 0.585, bezTop = BH / 2 - 0.62, bezBot = bezTop - SHt;
+    put(new THREE.ShapeGeometry(rrect(BW - 1.25, SHt, 0.55, 1.5), 16), GLASS, 0, (bezTop + bezBot) / 2, FZ + 0.012);                 // the dark glass round the screen
+    const SX = BW / 2 - 1.12, sTop = bezTop - 0.5, sBot = bezBot + 0.6;                                                            // the screen itself (the page is laid exactly over this)
+    put(new THREE.PlaneGeometry(SX * 2, sTop - sBot), flatM(0x000000), 0, (sTop + sBot) / 2, FZ + 0.016);
+    const label = (text, px, w, color, weight) => { const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64; const x = cv.getContext('2d'); x.fillStyle = color; x.font = `${weight || 600} ${px}px ${FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle'; let cx = 256 - (text.length - 1) * 2; x.fillText(text, 256, 34); const tx = new THREE.CanvasTexture(cv); tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 8; return new THREE.Mesh(new THREE.PlaneGeometry(w, w / 8), new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false })); };
+    { // the lens: two thin stripes across its top, a small power light on its left edge
+      const nm = label('PETAR ISAKOVIC', 46, 5.6, NAVY, 800); nm.position.set(-BW / 2 + 3.5, bezBot - 0.52, FZ + 0.02); dev.add(nm);                 // the name, printed on the shell under the lens
+      put(new THREE.PlaneGeometry(BW - 1.6, 0.045), flatM(0xa3a199), 0, BH / 2 - 0.3, FZ + 0.014);                                                   // the groove across the top
+      for (const gx of [-BW / 2 + 1.5, BW / 2 - 1.5]) put(new THREE.PlaneGeometry(0.045, 0.3), flatM(0xa3a199), gx, BH / 2 - 0.16, FZ + 0.014); }
+    const led = put(new THREE.CircleGeometry(0.1, 16), flatM(0x3a1512), -SX - 0.25, (sTop + sBot) / 2 + 1.2, FZ + 0.02); led.visible = false; // (no power light on the lens: on a phone it just read as a stray dot)
+    // controls
+    const CZ = bezBot + BH / 2, cy = bezBot - CZ * 0.47, buttons = [];
+    const key = (mesh, k, hit) => { mesh.userData = { k, z0: mesh.position.z, p: 0 }; buttons.push(mesh); if (hit) { hit.userData = { k, proxy: mesh }; hits.push(hit); } else hits.push(mesh); return mesh; };
+    const hits = [];
+    { const DX = -2.35, L = 3.1, Wd = 1.02; // D-pad: one cross, four directions
+      put(new THREE.CircleGeometry(L / 2 + 0.28, 40), INSET, DX, cy, FZ + 0.012);
+      const cross = new THREE.Group(); cross.position.set(DX, cy, FZ + 0.2); dev.add(cross);
+      const bx = (w, hh) => { const g = new THREE.ExtrudeGeometry(rrect(w, hh, 0.16), { depth: 0.34, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 3 }); g.center(); return g; };
+      put(bx(L, Wd), DARK, 0, 0, 0, cross); put(bx(Wd, L), DARK, 0, 0, 0, cross); put(new THREE.CircleGeometry(0.26, 20), mat(0x1a1d22, 0.6, 0.1), 0, 0, 0.24, cross);
+      cross.userData = { z0: cross.position.z, p: 0, tilt: [0, 0] }; buttons.push(cross);
+      [['up', 0, 1], ['down', 0, -1], ['left', -1, 0], ['right', 1, 0]].forEach(([k, ax, ay]) => { const hm = put(new THREE.PlaneGeometry(1.25, 1.25), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), DX + ax * 1.08, cy + ay * 1.08, FZ + 0.45); hm.userData = { k, proxy: cross, dir: [ax, ay] }; hits.push(hm); }); }
+    { const ax = 3.05, ay = cy + 0.5, bxp = 1.25, byp = cy - 0.45; // A and B, set on a slanted pad
+      const pad = put(new THREE.ShapeGeometry(rrect(4.3, 2.05, 1.02), 20), INSET, (ax + bxp) / 2, (ay + byp) / 2, FZ + 0.012); pad.rotation.z = Math.atan2(ay - byp, ax - bxp);
+      [['a', ax, ay, 'A'], ['b', bxp, byp, 'B']].forEach(([k, x, y, ch]) => { const g = new THREE.CylinderGeometry(0.8, 0.84, 0.42, 36); g.rotateX(HALF); key(put(g, BERRY, x, y, FZ + 0.2), k);
+        const l = label(ch, 56, 3.4, NAVY, 800); l.position.set(x + 0.62, y - 1.12, FZ + 0.02); l.rotation.z = Math.atan2(ay - byp, ax - bxp); dev.add(l); }); } // lettered on the shell, below each button
+    [['select', -1.15, 'SELECT'], ['start', 1.15, 'START']].forEach(([k, x, text]) => { // the two rubber keys
+      const y = -BH / 2 + CZ * 0.17, g = new THREE.ExtrudeGeometry(rrect(1.45, 0.42, 0.21), { depth: 0.16, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 3 }); g.center();
+      const b = key(put(g, SOFT, x, y, FZ + 0.1), k); b.rotation.z = 0.42; const big = put(new THREE.PlaneGeometry(2.2, 1.5), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), x, y - 0.1, FZ + 0.4); big.userData = { k, proxy: b }; hits.push(big);
+      const l = label(text, 56, 2.5, NAVY, 800); l.position.set(x + 0.22, y - 0.62, FZ + 0.02); l.rotation.z = 0.42; dev.add(l); });
+    for (let n = 0; n < 6; n++) { const sl = put(new THREE.ShapeGeometry(rrect(0.2, 1.3, 0.1), 6), mat(0x9f9d95, 0.7, 0.02), BW / 2 - 2.7 + n * 0.36, -BH / 2 + 1.5 + n * 0.16, FZ + 0.012); sl.rotation.z = -0.5; } // speaker
+    // back: the stickers
+    { // laid out in rows once every picture has loaded and its shape is known: each row is scaled to fit the width, so nothing overlaps
+      const ROWS = [['stackadapt', 'heseri', 'voodoo'], ['mlh', 'waterloo', 'ggb'], ['mic', 'soon'], ['cheque', 'four'], ['knight', 'goose', 'proteful', 'zomp'], ['oyster', 'boxhead']].map((r) => r.filter((k) => ST[k])).filter((r) => r.length);
+      const load = (k) => new Promise((res) => { const im = new Image(); im.onload = () => res([k, im]); im.onerror = () => res([k, null]); im.src = ST[k]; });
+      Promise.all(ROWS.flat().map(load)).then((list) => {
+        const IM = Object.fromEntries(list), GAP = 0.42, availW = BW - 1.9, rowH = (BH - 2.2) / ROWS.length - GAP;
+        ROWS.forEach((row, r) => {
+          const ims = row.map((k) => IM[k]).filter(Boolean), asp = ims.reduce((q, im) => q + im.naturalWidth / im.naturalHeight, 0);
+          const hh = Math.min(rowH, (availW - GAP * (ims.length - 1)) / asp), total = asp * hh + GAP * (ims.length - 1), y = BH / 2 - 1.1 - rowH / 2 - r * (rowH + GAP);
+          let x = -total / 2;
+          ims.forEach((im, n) => { const w = hh * im.naturalWidth / im.naturalHeight, tx = new THREE.Texture(im); tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 8; tx.needsUpdate = true;
+            const m = put(new THREE.PlaneGeometry(w * 0.94, hh * 0.94), new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false }), -(x + w / 2), y, -FZ - 0.012); m.rotation.y = Math.PI; m.rotation.z = ((r + n) % 2 ? 1 : -1) * 0.035; x += w + GAP; });
+        });
+      }); }
+    // camera and the page's place on the screen
+    const v3 = new THREE.Vector3();
+    function fit() {
+      const w = innerWidth, hh = innerHeight; renderer.setSize(w, hh, false); cam.aspect = w / hh;
+      const tan = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)), d = Math.max((BH / 0.955 / 2) / tan, (BW / 0.93 / 2) / (tan * cam.aspect));
+      cam.position.set(0, 0, d + FZ); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+      const px = (x, y) => { v3.set(x, y, FZ + 0.016).project(cam); return [(v3.x * 0.5 + 0.5) * w, (-v3.y * 0.5 + 0.5) * hh]; };
+      const [l, tp] = px(-SX, sTop), [r, bt] = px(SX, sBot);
+      Object.assign(os.style, { left: l + 'px', top: tp + 'px', width: (r - l) + 'px', height: (bt - tp) + 'px' });
+    }
+    addEventListener('resize', fit); fit();
+    window.__pocket = { at(k) { const o = hits.find((q) => q.userData.k === k); dev.updateWorldMatrix(true, true); o.getWorldPosition(v3).project(cam); return [(v3.x * 0.5 + 0.5) * innerWidth, (-v3.y * 0.5 + 0.5) * innerHeight]; } }; // where a button is on the page (for tests)
+    // turning it over, pressing its buttons
+    let rot = Math.PI * 3, rotT = 0, landed = false, landT = 0, drag = null, intro = 0;
+    onCheat = () => { rot = Math.PI * 4; rotT = 0; }; // the cheat spins the device twice
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+    const pickAt = (e) => { ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam); return ray.intersectObjects(hits, false)[0]; };
+    const press = (ud) => { buzz(); const b = ud.proxy || null; if (b) { b.userData.p = 1; if (ud.dir) b.userData.tilt = ud.dir; } if (ud.k === 'select') { rotT = Math.abs(rotT) < 0.1 ? Math.PI : 0; return; } ctl(ud.k); };
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!landed) return;
+      const front = Math.abs(rot) < 0.2, hit = front ? pickAt(e) : null;
+      if (hit) { const ud = hit.object.userData; if (!ud.proxy) hit.object.userData.p = 1; press(ud); return; }
+      drag = { x: e.clientX, r: rot, moved: false }; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+    });
+    canvas.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x; if (Math.abs(dx) > 6) drag.moved = true; if (drag.moved) rot = rotT = drag.r + dx * (Math.PI / (innerWidth * 0.8)); });
+    const up = () => { if (!drag) return; const d = drag; drag = null; if (!d.moved) { if (Math.abs(rot) > 0.5) rotT = 0; return; } const turns = Math.round(rot / Math.PI); rotT = turns * Math.PI; if (Math.abs(turns) % 2 === 0) { rot -= rotT; rotT = 0; } };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+    let lastT = performance.now();
+    (function loop(now) {
+      requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+      if (!landed) { // arrival: it comes up from below, back first, and turns to face you
+        // it is thrown in from far off, tumbling so the stickers on its back flash past, overshoots a little as it arrives, and lands
+        intro = Math.min(1, intro + dt / (reduced ? 0.01 : 2.1)); const e = 1 - Math.pow(1 - intro, 3), q = intro - 1, back = 1 + 2.70158 * q * q * q + 1.70158 * q * q;
+        rot = Math.PI * 3 * (1 - e); dev.rotation.x = 1.1 * (1 - e) * Math.cos(intro * 5); dev.rotation.z = -0.5 * (1 - e);
+        dev.position.set(BW * 0.9 * (1 - e) * (1 - e), -BH * 0.55 * (1 - e) * (1 - e), 0); dev.scale.setScalar(0.16 + 0.84 * back);
+        if (intro >= 1) { landed = true; landT = now; rot = rotT = 0; dev.position.set(0, 0, 0); dev.scale.setScalar(1); dev.rotation.x = 0; dev.rotation.z = 0; led.material.color.setHex(0xff4b3a); startBoot(); }
+      } else if (!drag) rot += (rotT - rot) * (1 - Math.exp(-dt * 9));
+      dev.rotation.y = rot;
+      if (landed && !reduced) { const w = (now - landT) / 1000; dev.rotation.x = w < 1.4 ? Math.sin(w * 19) * Math.exp(-w * 4.5) * 0.085 : 0; dev.position.y = w < 1.4 ? -Math.abs(Math.sin(w * 9.5)) * Math.exp(-w * 5) * 0.5 : 0; } // the landing: a short, settling rock
+      const facing = landed && Math.abs(rot) < 0.035; if (os.classList.contains('face') !== facing) os.classList.toggle('face', facing);
+      for (const b of buttons) { const u = b.userData; if (u.p > 0.002) { u.p *= Math.exp(-dt * 11); b.position.z = u.z0 - 0.13 * u.p; if (u.tilt) { b.rotation.x = -u.tilt[1] * 0.12 * u.p; b.rotation.y = u.tilt[0] * 0.12 * u.p; } } }
+      renderer.render(scene, cam);
+    })(lastT);
+  }
 
   /* ======================= screens (2D canvases used as textures) ======================= */
   const TW = 800, TH = 480, BW = 640, BH = 480;
