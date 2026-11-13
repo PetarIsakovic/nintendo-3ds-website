@@ -117,7 +117,7 @@
   const topCv = mk(TW, TH), botCv = mk(BW, BH);
   let tc = topCv.getContext('2d'); const bc = botCv.getContext('2d');
   const topTex = new THREE.CanvasTexture(topCv), botTex = new THREE.CanvasTexture(botCv);
-  [topTex, botTex].forEach((t) => { t.encoding = THREE.sRGBEncoding; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; }); // mipmaps: the screens are usually drawn smaller than their canvases
+  [topTex, botTex].forEach((t) => { t.encoding = THREE.sRGBEncoding; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); const mips = !phone.matches; t.minFilter = mips ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter; t.generateMipmaps = mips; }); // (phones show the screens close to full size, and building mipmaps on every update is costly there) // mipmaps: the screens are usually drawn smaller than their canvases
 
   const S = { sec: null, i: 0, home: 0, booted: false, changed: 0 };
   let regions = []; // tappable areas on the bottom screen, in canvas px
@@ -1694,6 +1694,19 @@
   // Touch: a finger on the console only takes hold of it once the page has been scrolled all the way open and has come to rest.
   // Until then every swipe is a scroll, so opening the lid (and the swipes people add once it is open) never tumble the console.
   let lastScrollT = -1e9; addEventListener('scroll', () => { lastScrollT = performance.now(); }, { passive: true });
+  // Phones: the page only ever rests fully closed or fully open. Let go part-way and it carries on in the direction you were
+  // going (a short swipe is enough), so there is no half-open state where a touch could mean either thing.
+  { let dirS = 0, lastY = scrollY, fingers = 0, settleT = 0;
+    const settle = () => { clearTimeout(settleT); settleT = setTimeout(() => {
+      if (!phone.matches || fingers > 0 || forceP !== null) return;
+      const pr = scrollP(); if (pr <= 0.004 || pr >= 0.996) return;
+      const open = dirS > 0 ? pr > 0.07 : dirS < 0 ? pr > 0.93 : pr > 0.5;
+      scrollTo({ top: open ? scrollMax() : 0, behavior: reduced ? 'auto' : 'smooth' });
+    }, 90); };
+    addEventListener('scroll', () => { const y = scrollY; if (y !== lastY) dirS = y > lastY ? 1 : -1; lastY = y; settle(); }, { passive: true });
+    addEventListener('touchstart', () => { fingers++; clearTimeout(settleT); }, { passive: true });
+    const up = () => { fingers = Math.max(0, fingers - 1); settle(); };
+    addEventListener('touchend', up, { passive: true }); addEventListener('touchcancel', up, { passive: true }); }
   const touchReady = () => openness() > 0.9 && scrollP() > 0.985 && performance.now() - lastScrollT > 450;
   addEventListener('touchend', () => { if (performance.now() - lastScrollT < 450 || !touchReady()) lastScrollT = performance.now(); }, { passive: true }); // a run of quick swipes counts as one scroll, even after the page has hit the end
   canvas.addEventListener('touchstart', (e) => {
@@ -1802,7 +1815,7 @@
   }
   setInterval(() => { if (S.booted && !(S.sec && S.sec.game)) drawTop(); }, 30000);
 
-  let last = t0;
+  let last = t0, topDrawn = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; // rAF time can precede t0
@@ -1825,7 +1838,12 @@
     zoom();
     const lit = THREE.MathUtils.smoothstep(lidAngle, 0.5, 1.5);
     topMat.color.setScalar(lit); botMat.color.setScalar(lit);
-    if (!reduced && S.booted && lit > 0.05 && !(S.sec && S.sec.game)) drawTop(); // the top screen is alive
+    if (!reduced && S.booted && lit > 0.05 && !(S.sec && S.sec.game)) { // the top screen is alive
+      // Redrawing it and re-uploading it to the graphics card every frame is the most expensive thing on the page. A phone only
+      // does that while something on it is actually changing; otherwise it refreshes once a second, which keeps scrolling and turning smooth.
+      const nowS = now / 1000, live = !phone.matches || performance.now() / 1000 - S.changed < 1.0 || isBooting() || music.on || padDrag || (S.toast && performance.now() / 1000 < S.toast.until) || performance.now() / 1000 - secret.at < SECRET_FOR + 0.2;
+      if (live || nowS - topDrawn > 1) { drawTop(); topDrawn = nowS; }
+    }
     if (isBooting()) drawBottom();
 
     const px = drag ? 0 : hover.x * 0.07, py = drag ? 0 : hover.y * 0.04;
