@@ -42,7 +42,7 @@
           'Before that I built a metal-loss contour detection algorithm for oil and gas pipelines at Zomp, and worked on mobile games at Heseri Games.',
           'Outside of work I go to a lot of hackathons. I also co-founded one, GooseHacks, in 2023.'] },
       { label: 'Stack', kicker: 'ABOUT', title: 'Tech stack',
-        body: ['Web: TypeScript, React, Ruby on Rails, GraphQL, Go, AWS', 'Games and desktop: Unity, C#, .NET, WPF, gRPC', 'Mobile and AI: React Native, Python, FastAPI, Firebase', 'Also: Java. I <3 Java.'], bullets: true },
+        body: ['Web: TypeScript, React, Ruby on Rails, GraphQL, Go, AWS', 'Games and desktop: Unity, C#, .NET, WPF, gRPC', 'Mobile and AI: React Native, Python, Firebase', 'Also: Java. I <3 Java.'], bullets: true },
     ] },
     { id: 'work', label: 'Work', blurb: 'Experience', color: C.work, items: [
       { label: 'StackAdapt', kicker: 'SEP 2026 – NOW', title: 'StackAdapt', sub: 'Software Engineering Intern', bullets: true,
@@ -110,7 +110,7 @@
     ['t_ts', 506, 112, 74, -0.16], ['t_react', 606, 96, 84, 0.12], ['t_aws', 708, 118, 80, -0.08],
     ['t_rails', 482, 196, 82, 0.2], ['t_graphql', 574, 186, 78, -0.22], ['t_go', 672, 200, 92, 0.1], ['t_unity', 744, 262, 76, 0.24],
     ['t_csharp', 520, 280, 80, -0.1], ['t_python', 624, 286, 84, 0.17], ['t_dotnet', 478, 356, 84, 0.14],
-    ['t_fastapi', 572, 372, 78, -0.2], ['t_firebase', 670, 368, 86, 0.08], ['t_java', 748, 372, 80, -0.15],
+    ['t_firebase', 590, 370, 86, 0.08], ['t_java', 706, 372, 80, -0.15],
   ];
   SECTIONS[3].items[1].gallery = [['waterloo', 610, 168, 150, 150], ['huskies', 610, 328, 250, 170]]; // Scholarships: university and high school
 
@@ -215,7 +215,7 @@
       if (it.kicker) kids.push(t('p', 'os-kick', it.kicker));
       kids.push(t('h2', '', it.title)); if (it.sub) kids.push(t('p', 'os-sub', it.sub));
       if (it.scatter) { // the stack: just the technologies, each logo with its name
-        const NAME = { t_ts: 'TypeScript', t_react: 'React', t_aws: 'AWS', t_rails: 'Rails', t_graphql: 'GraphQL', t_go: 'Go', t_unity: 'Unity', t_csharp: 'C#', t_python: 'Python', t_dotnet: '.NET', t_fastapi: 'FastAPI', t_firebase: 'Firebase', t_java: 'Java' };
+        const NAME = { t_ts: 'TypeScript', t_react: 'React', t_aws: 'AWS', t_rails: 'Rails', t_graphql: 'GraphQL', t_go: 'Go', t_unity: 'Unity', t_csharp: 'C#', t_python: 'Python', t_dotnet: '.NET', t_firebase: 'Firebase', t_java: 'Java' };
         kids.push(h('div', 'os-stack', it.scatter.map(([k]) => h('span', '', [pic(k), t('b', '', NAME[k] || '')]))));
       } else
       kids.push(it.bullets ? h('ul', '', it.body.map((b) => t('li', '', b))) : h('div', 'os-text', it.body.map((b) => t('p', '', b))));
