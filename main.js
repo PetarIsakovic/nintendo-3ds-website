@@ -40,7 +40,7 @@
         body: ['I’m a Software Engineering student at the University of Waterloo. Right now I’m an intern on the audiences team at StackAdapt.',
           'Before that I built a metal-loss contour detection algorithm for oil and gas pipelines at Zomp, and worked on mobile games at Heseri Games.',
           'Outside of work I go to a lot of hackathons. I also co-founded one, GooseHacks, in 2023.'] },
-      { label: 'Stack', kicker: 'ABOUT', title: 'What I build with', sub: 'Three internships, three different stacks',
+      { label: 'Stack', kicker: 'ABOUT', title: 'Tech stack',
         body: ['Web: TypeScript, React, Ruby on Rails, GraphQL, Go, AWS', 'Games and desktop: Unity, C#, .NET, WPF, gRPC', 'Mobile and AI: React Native, Python, FastAPI, Firebase', 'Also: Java. I <3 Java.'], bullets: true },
     ] },
     { id: 'work', label: 'Work', blurb: 'Experience', color: C.work, items: [
@@ -213,12 +213,16 @@
       else if (it.img && !it.tight) kids.push(h('div', 'os-hero', [pic(it.img), it.corner2 ? pic(it.corner2) : null]));
       if (it.kicker) kids.push(t('p', 'os-kick', it.kicker));
       kids.push(t('h2', '', it.title)); if (it.sub) kids.push(t('p', 'os-sub', it.sub));
+      if (it.scatter) { // the stack: just the technologies, each logo with its name, then the ones without a logo
+        const NAME = { t_ts: 'TypeScript', t_react: 'React', t_aws: 'AWS', t_rails: 'Rails', t_graphql: 'GraphQL', t_go: 'Go', t_unity: 'Unity', t_csharp: 'C#', t_python: 'Python', t_dotnet: '.NET', t_fastapi: 'FastAPI', t_firebase: 'Firebase', t_java: 'Java' };
+        kids.push(h('div', 'os-stack', it.scatter.map(([k]) => h('span', '', [pic(k), t('b', '', NAME[k] || '')]))));
+        kids.push(h('p', 'os-chips', ['React Native', 'WPF', 'gRPC', 'EF Core', 'Electron'].map((c) => t('span', '', c))));
+      } else
       kids.push(it.bullets ? h('ul', '', it.body.map((b) => t('li', '', b))) : h('div', 'os-text', it.body.map((b) => t('p', '', b))));
       if (it.chips) kids.push(h('p', 'os-chips', it.chips.map((c) => t('span', '', c))));
       if (it.shots) kids.push(h('div', 'os-shots' + (it.tall ? ' tall' : ''), it.shots.map((k) => pic(k))));
       const extra = [].concat(it.tight ? [it.img, 'cheque', 'four'] : [], it.gallery ? it.gallery.map((g) => g[0]) : [], it.more || [], it.rowExtra || []).filter((k, q, a) => k && a.indexOf(k) === q && !(k === it.img && !it.tight));
       if (extra.length) kids.push(h('div', 'os-stickers', extra.map((k, q) => { const e = pic(k); if (e) e.style.transform = `rotate(${q % 2 ? 2.5 : -2.5}deg)`; return e; })));
-      if (it.scatter) kids.push(h('div', 'os-logos', it.scatter.map(([k, , , , rot]) => { const e = pic(k); if (e) e.style.transform = `rotate(${rot}rad)`; return e; })));
       if (it.links) kids.push(h('div', 'os-btns', it.links.map(([l, u]) => btn('os-btn', [t('span', '', 'Open ' + l), t('i', '', '↗')], () => openUrl(u)))));
       if (n > 1) kids.push(h('div', 'os-pn', [i > 0 ? btn('', [t('small', '', '‹ Previous'), t('b', '', sec.items[i - 1].label)], () => swap(page(sec, i - 1))) : h('span'), i < n - 1 ? btn('', [t('small', '', 'Next ›'), t('b', '', sec.items[i + 1].label)], () => swap(page(sec, i + 1))) : h('span')]));
       return view(sec.label, (i + 1) + ' / ' + n, kids);

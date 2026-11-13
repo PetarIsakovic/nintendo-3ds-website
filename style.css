@@ -242,3 +242,11 @@ html.dev .os.on .os-boot p { animation: osBlink .5s steps(1) 1.6s 3, osIn .01s l
 .os-gwrap { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; }
 .os-gwrap .os-game { position: absolute; inset: 0; margin: auto; width: auto; height: auto; max-width: 100%; max-height: 100%; border-radius: 10px; } /* out of the flow, so the board can never push the layout taller than the screen */
 .os-gwrap .os-gmsg { position: absolute; left: 0; right: 0; top: 27%; transform: translateY(-50%); margin: 0; min-height: 0; pointer-events: none; font-weight: 600; color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 8px #fff; }
+.os-stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.os-stack span { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px 10px; background: #fff; border: 1px solid var(--line); border-radius: 14px; }
+.os-stack img { width: 40px; height: 40px; object-fit: contain; } .os-stack b { font-size: 12.5px; font-weight: 600; }
+
+/* phones: nothing moves sideways. The page itself is pinned, and each screen only ever scrolls up and down. */
+html.app, html.app body { position: fixed; inset: 0; width: 100%; overflow: hidden; touch-action: none; }
+.os-view { overflow-x: hidden; touch-action: pan-y; } .os-stage { touch-action: pan-y; }
+.os-body { max-width: 100%; overflow-x: hidden; overflow-wrap: anywhere; } .os-body img { max-width: 100%; }
