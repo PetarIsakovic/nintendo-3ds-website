@@ -21,7 +21,7 @@ body::before {
   background: radial-gradient(60vw 54vh at 50% 50%, rgba(255, 255, 255, .85), transparent 72%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' fill='none' stroke='%23117587' stroke-opacity='.16' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M14 8v12M8 14h12'/%3E%3Ccircle cx='42' cy='42' r='4.5'/%3E%3C/svg%3E") 0 0 / 56px 56px;
 }
 
-#gl { position: fixed; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: default; outline: none; }
+#gl { position: fixed; inset: 0; bottom: auto; z-index: 1; width: 100%; height: 100%; height: 100svh; display: block; touch-action: pan-y; cursor: default; outline: none; }
 #gl.grab { cursor: grab; }
 #gl.grabbing { cursor: grabbing; }
 #gl.point { cursor: pointer; }
@@ -244,9 +244,10 @@ html.dev .os.on .os-boot p { animation: osBlink .5s steps(1) 1.6s 3, osIn .01s l
 .os-gwrap .os-gmsg { position: absolute; left: 0; right: 0; top: 27%; transform: translateY(-50%); margin: 0; min-height: 0; pointer-events: none; font-weight: 600; color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 8px #fff; }
 .os-stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
 .os-stack span { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px 10px; background: #fff; border: 1px solid var(--line); border-radius: 14px; }
-.os-stack img { width: 40px; height: 40px; object-fit: contain; } .os-stack b { font-size: 12.5px; font-weight: 600; }
+.os-stack img { width: 40px; height: 40px; object-fit: contain; } .os-stack b { font-size: 11.5px; font-weight: 600; white-space: nowrap; letter-spacing: -.01em; } /* a name never breaks across lines */
+.os-stack span { min-width: 0; padding-left: 2px; padding-right: 2px; }
 
 /* phones: nothing moves sideways. The page itself is pinned, and each screen only ever scrolls up and down. */
 html.app, html.app body { position: fixed; inset: 0; width: 100%; overflow: hidden; touch-action: none; }
 .os-view { overflow-x: hidden; touch-action: pan-y; } .os-stage { touch-action: pan-y; }
-.os-body { max-width: 100%; overflow-x: hidden; overflow-wrap: anywhere; } .os-body img { max-width: 100%; }
+.os-body { max-width: 100%; overflow-x: hidden; overflow-wrap: break-word; } .os-body img { max-width: 100%; }

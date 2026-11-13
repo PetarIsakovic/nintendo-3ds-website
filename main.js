@@ -13,6 +13,7 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches || /[?&]still\b/.test(location.search);
   const phone = matchMedia('(max-width: 700px) and (orientation: portrait)'); // phones get a close-up of the screens and larger type on them
   const onPhone = () => phone.matches;
+  { const mq = phone, was = mq.matches, flip = () => { if (mq.matches !== was) location.reload(); }; if (mq.addEventListener) mq.addEventListener('change', flip); else if (mq.addListener) mq.addListener(flip); } // turning a phone between upright and sideways switches between the two versions of the site
   // Phones do not get the 3D console. They get what runs on it, full screen: the startup animation, the icon menu, and pages
   // you tap into, all as ordinary page elements (real text, native scrolling). ?3d on the address forces the console instead.
   const APP = phone.matches && !/[?&]3d\b/.test(location.search);
@@ -213,10 +214,9 @@
       else if (it.img && !it.tight) kids.push(h('div', 'os-hero', [pic(it.img), it.corner2 ? pic(it.corner2) : null]));
       if (it.kicker) kids.push(t('p', 'os-kick', it.kicker));
       kids.push(t('h2', '', it.title)); if (it.sub) kids.push(t('p', 'os-sub', it.sub));
-      if (it.scatter) { // the stack: just the technologies, each logo with its name, then the ones without a logo
+      if (it.scatter) { // the stack: just the technologies, each logo with its name
         const NAME = { t_ts: 'TypeScript', t_react: 'React', t_aws: 'AWS', t_rails: 'Rails', t_graphql: 'GraphQL', t_go: 'Go', t_unity: 'Unity', t_csharp: 'C#', t_python: 'Python', t_dotnet: '.NET', t_fastapi: 'FastAPI', t_firebase: 'Firebase', t_java: 'Java' };
         kids.push(h('div', 'os-stack', it.scatter.map(([k]) => h('span', '', [pic(k), t('b', '', NAME[k] || '')]))));
-        kids.push(h('p', 'os-chips', ['React Native', 'WPF', 'gRPC', 'EF Core', 'Electron'].map((c) => t('span', '', c))));
       } else
       kids.push(it.bullets ? h('ul', '', it.body.map((b) => t('li', '', b))) : h('div', 'os-text', it.body.map((b) => t('p', '', b))));
       if (it.chips) kids.push(h('p', 'os-chips', it.chips.map((c) => t('span', '', c))));
@@ -1895,7 +1895,12 @@
   const OPEN = THREE.MathUtils.degToRad(112);
   let lidAngle = 0, lidTarget = 0;
   const openness = () => lidAngle / OPEN; // 0 closed .. 1 open
-  const scrollMax = () => Math.max(1, document.documentElement.scrollHeight - innerHeight);
+  // Phone browsers slide their toolbars in and out while you scroll, which changes the window's height mid-gesture. Sizing anything
+  // from that makes the picture stretch and then jump. So the canvas keeps one fixed height (the smallest the window gets), and
+  // scroll progress is measured against the tallest, neither of which moves while you scroll.
+  const probe = document.createElement('div'); probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:100lvh;visibility:hidden;pointer-events:none'; document.body.appendChild(probe);
+  const tallH = () => Math.max(probe.offsetHeight || 0, innerHeight);
+  const scrollMax = () => Math.max(1, document.documentElement.scrollHeight - tallH());
   const forceP = new URLSearchParams(location.search).get('p'); // ?p=0..1 pins the lid, for testing
   const scrollP = () => forceP !== null ? +forceP : THREE.MathUtils.clamp(scrollY / scrollMax(), 0, 1);
   function scrollOpen() { scrollTo({ top: scrollMax(), behavior: reduced ? 'auto' : 'smooth' }); }
@@ -1909,7 +1914,7 @@
   let dist = 40;
 
   function resize() {
-    const w = innerWidth, h = innerHeight, aspect = w / h;
+    const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight, aspect = w / h; // the canvas's own, steady size
     renderer.setSize(w, h, false);
     camera.aspect = aspect;
     const half = 9.6; // half-extent that must stay in view
