@@ -1691,10 +1691,16 @@
   let lastHover = null; // a prop that reacts to the pointer being over it
   let padDrag = null;
   // a touch that starts on a scrollable top screen scrolls that page, not the document (which would move the lid)
+  // Touch: a finger on the console only takes hold of it once the page has been scrolled all the way open and has come to rest.
+  // Until then every swipe is a scroll, so opening the lid (and the swipes people add once it is open) never tumble the console.
+  let lastScrollT = -1e9; addEventListener('scroll', () => { lastScrollT = performance.now(); }, { passive: true });
+  const touchReady = () => openness() > 0.9 && scrollP() > 0.985 && performance.now() - lastScrollT > 450;
+  addEventListener('touchend', () => { if (performance.now() - lastScrollT < 450 || !touchReady()) lastScrollT = performance.now(); }, { passive: true }); // a run of quick swipes counts as one scroll, even after the page has hit the end
   canvas.addEventListener('touchstart', (e) => {
-    if (openness() <= 0.9) return;
+    if (!touchReady()) { lastScrollT = performance.now(); return; }
     if (S.sec && S.sec.game) { e.preventDefault(); return; }                                    // in Snake a swipe steers, so it must not scroll the page
-    if (padMax > 0) { const p = pick(e.touches[0]); if (p && p.top) e.preventDefault(); }
+    const p = pick(e.touches[0]);
+    if (p) e.preventDefault();                               // open: a finger on the console turns it (or scrolls a long page on its top screen); only the background scrolls the page
   }, { passive: false });
   let swipe = null; // Snake on a touch screen: swipe anywhere to turn
   let drag = null, dragFn = null; // dragFn: a part being slid (e.g. the volume knob)
@@ -1707,11 +1713,12 @@
     if (p && p.prop && p.prop.userData.stick) { stick = true; stickTo(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); return; }
     if (p && p.prop && p.prop.userData.drag) { dragFn = p.prop.userData.drag; dragFn(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); return; }
     if (p && p.prop) { p.prop.userData.act(p.uv); return; }
-    if (e.pointerType === 'touch' && S.sec && S.sec.game && openness() > 0.9) { // a finger down during Snake starts a swipe, wherever it lands
+    if (e.pointerType === 'touch' && S.sec && S.sec.game && touchReady()) { // a finger down during Snake starts a swipe, wherever it lands
       swipe = { x: e.clientX, y: e.clientY, moved: false, region: p && p.region, top: !!(p && p.top) };
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ } return;
     }
     if (!p) return; // only a press that lands on the console can grab and turn it
+    if (e.pointerType === 'touch' && !touchReady()) return; // touch: this swipe is scrolling the page, not turning the console
     drag = { x: e.clientX, y: e.clientY, yaw: goal.yaw, pitch: goal.pitch, moved: false, region: p && p.region };
     canvas.setPointerCapture(e.pointerId);
   });
@@ -1733,8 +1740,10 @@
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (Math.abs(dx) + Math.abs(dy) > 7) { drag.moved = true; canvas.classList.add('grabbing'); }
       if (drag.moved) {
-        goal.yaw = drag.yaw + dx * 0.006; // spin it all the way round to see the back
-        goal.pitch = drag.pitch + dy * 0.005; // free: flip it over to read the underside
+        const sp = Math.max(0.006, 4.4 / innerWidth); // on a narrow screen each pixel turns it further: a swipe across a phone is about two-thirds of a turn
+        const nowT = performance.now(); if (nowT - (drag.t || 0) > 40) { drag.px = drag.lx; drag.py = drag.ly; drag.pt = drag.t; drag.lx = e.clientX; drag.ly = e.clientY; drag.t = nowT; } drag.sp = sp; // remember the last stretch of the drag, for the flick on release
+        goal.yaw = drag.yaw + dx * sp; // spin it all the way round to see the back
+        goal.pitch = drag.pitch + dy * sp * 0.6; // free: flip it over to read the underside
       }
       return;
     }
@@ -1756,6 +1765,10 @@
     if (stick) { stick = false; stickDir = [null, null]; canvas.classList.remove('grabbing'); try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ } return; }
     if (sliding) { sliding = false; try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ } return; }
     if (!drag) return;
+    if (drag.moved && drag.pt && e.clientX !== undefined) { // a flick keeps turning a little after the finger lifts
+      const dtm = Math.max(16, performance.now() - drag.pt), vx = (e.clientX - drag.px) / dtm, vy = (e.clientY - drag.py) / dtm, lim = (v) => Math.max(-1.6, Math.min(1.6, v));
+      if (Math.hypot(vx, vy) > 0.25) { goal.yaw += lim(vx * 160 * drag.sp); goal.pitch += lim(vy * 160 * drag.sp * 0.6); }
+    }
     if (!drag.moved) {
       if (openness() < 0.9) { /* closed: a click does not open it; scrolling does */ }
       else if (drag.region) drag.region.fn();
@@ -1764,7 +1777,8 @@
     try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
   };
   canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', () => { swipe = null; padDrag = null; dragFn = null; stick = false; sliding = false; drag = null; canvas.classList.remove('grabbing'); });
+  canvas.addEventListener('pointercancel', () => { if (drag) { goal.yaw = drag.yaw; goal.pitch = drag.pitch; } swipe = null; padDrag = null; // (a touch the browser took over as a scroll must not leave the console turned)
+    dragFn = null; stick = false; sliding = false; drag = null; canvas.classList.remove('grabbing'); });
 
   const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', a: 'a', b: 'b', x: 'x', y: 'y', Enter: 'a', ' ': 'a', Escape: 'b', Backspace: 'b', h: 'start', q: 'l', e: 'r' }; // the letters A, B, X, Y press the buttons with those letters
   addEventListener('keydown', (e) => {
@@ -1801,6 +1815,7 @@
     if (S.booted && o < 0.25) { // shut: power down, so the next open starts from scratch with the boot sequence
       if (S.sec && S.sec.game) snake.stop();
       S.booted = false; S.sec = null; S.home = 0; S.i = 0; redraw();
+      goal.yaw = Math.round(goal.yaw / (Math.PI * 2)) * Math.PI * 2; goal.pitch = Math.round(goal.pitch / (Math.PI * 2)) * Math.PI * 2; // and it faces front again, however it had been turned
     }
     if (!S.booted && o > 0.7) { S.booted = true; S.bootAt = reduced ? -1e9 : performance.now() / 1000; redraw(); if (!reduced) { S.changed = S.bootAt + BOOT; setTimeout(() => { drawTop(); drawBottom(); }, BOOT * 1000 + 40); } }
     document.body.classList.toggle('open', o > 0.9);
@@ -1814,8 +1829,9 @@
     if (isBooting()) drawBottom();
 
     const px = drag ? 0 : hover.x * 0.07, py = drag ? 0 : hover.y * 0.04;
-    orbit.yaw += (goal.yaw + px - orbit.yaw) * (reduced ? 1 : k);
-    orbit.pitch += (goal.pitch + py - orbit.pitch) * (reduced ? 1 : k);
+    const kf = drag ? 1 - Math.exp(-dt * 16) : k; // while a finger or the mouse is turning it, it follows closely; let go and it eases
+    orbit.yaw += (goal.yaw + px - orbit.yaw) * (reduced ? 1 : kf);
+    orbit.pitch += (goal.pitch + py - orbit.pitch) * (reduced ? 1 : kf);
     // closed: tipped toward the camera so the stickers read; open: upright
     rig.rotation.set(orbit.pitch + (1 - o) * 0.3, orbit.yaw - (1 - o) * 0.38, 0);
     device.position.lerpVectors(POS_CLOSED, POS_OPEN, o);
