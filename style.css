@@ -206,7 +206,9 @@ html.app #gl { touch-action: none; }
 
 /* the page sits exactly over the 3D device's screen (its place is set from the model); it shows only while the device faces you */
 html.dev .os { inset: auto; border-radius: 6px; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity .18s; font-size: 14.5px; }
-html.dev .os.on.face { opacity: 1; pointer-events: auto; }
+html.dev .os { transform-origin: 0 0; transition: none; }
+html.dev .os.on.vis { opacity: 1; }
+html.dev .os.on.face { pointer-events: auto; }
 .os.full { opacity: 1; }
 html.dev .os-bar { padding: 7px 12px 6px; font-size: 12px; }
 html.dev .os-foot { padding-bottom: 8px; } html.dev .os-foot p { display: none; } html.dev .os-foot a { font-size: 12.5px; padding: 3px 0; } html.dev .os-foot nav { gap: 14px; }

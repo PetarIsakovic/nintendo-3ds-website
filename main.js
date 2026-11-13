@@ -182,7 +182,7 @@
       if (v.ctl && v.ctl(k)) return;
       if (it.length) {
         const cols = v.classList.contains('os-home') ? 2 : 1, d = { up: -cols, down: cols, left: cols > 1 ? -1 : 0, right: cols > 1 ? 1 : 0 }[k];
-        if (k === 'a') { if (foc < 0) setFoc(0); else it[foc].click(); } else if (d) { if (foc < 0) setFoc(0); else { const n = foc + d, sameRow = Math.abs(d) !== 1 || Math.floor(n / cols) === Math.floor(foc / cols); if (n >= 0 && n < it.length && sameRow) setFoc(n); } } // at an edge it simply stops
+        if (k === 'a') { if (foc < 0) setFoc(0); else it[foc].click(); } else if (d) { if (foc < 0) setFoc(0); else { const n = foc + d, sameRow = (k !== 'left' && k !== 'right') || Math.floor(n / cols) === Math.floor(foc / cols); if (n >= 0 && n < it.length && sameRow) setFoc(n); } } // at an edge it simply stops
         return;
       }
       if (k === 'up' || k === 'down') v.scrollBy({ top: k === 'up' ? -190 : 190, behavior: 'smooth' });
@@ -250,7 +250,7 @@
         else { body.unshift(hd); if (hd[0] === food[0] && hd[1] === food[1]) { pts++; place(); } else body.pop(); }
         draw();
       };
-      const turn = (d) => { const last = q.length ? q[q.length - 1] : dir; if (d[0] !== -last[0] || d[1] !== -last[1]) q.push(d); started = true; };
+      const turn = (d) => { const last = q.length ? q[q.length - 1] : dir; if ((d[0] !== -last[0] || d[1] !== -last[1]) && (d[0] !== last[0] || d[1] !== last[1]) && q.length < 3) q.push(d); started = true; };
       let sw = null;
       const v = view('Snake', '', [h('div', 'os-score', [h('span', '', [t('small', '', 'Score '), score]), bestEl]), h('div', 'os-gwrap', [cv, msg])]); v.classList.add('os-snakev'); // the board is sized to whatever room is left, so all of it is always on screen
       v.addEventListener('pointerdown', (e) => { if (e.target.closest('.os-head')) return; sw = { x: e.clientX, y: e.clientY, moved: false }; });
@@ -328,14 +328,14 @@
         });
       }); }
     // camera and the page's place on the screen
-    const v3 = new THREE.Vector3();
+    const v3 = new THREE.Vector3(); let base = [0, 0, 1, 1];
     function fit() {
       const w = innerWidth, hh = innerHeight; renderer.setSize(w, hh, false); cam.aspect = w / hh;
       const tan = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)), d = Math.max((BH / 0.955 / 2) / tan, (BW / 0.93 / 2) / (tan * cam.aspect));
       cam.position.set(0, 0, d + FZ); cam.lookAt(0, 0, 0); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
       const px = (x, y) => { v3.set(x, y, FZ + 0.016).project(cam); return [(v3.x * 0.5 + 0.5) * w, (-v3.y * 0.5 + 0.5) * hh]; };
       const [l, tp] = px(-SX, sTop), [r, bt] = px(SX, sBot);
-      Object.assign(os.style, { left: l + 'px', top: tp + 'px', width: (r - l) + 'px', height: (bt - tp) + 'px' });
+      Object.assign(os.style, { left: l + 'px', top: tp + 'px', width: (r - l) + 'px', height: (bt - tp) + 'px' }); base = [l, tp, r - l, bt - tp];
     }
     addEventListener('resize', fit); fit();
     window.__pocket = { at(k) { const o = hits.find((q) => q.userData.k === k); dev.updateWorldMatrix(true, true); o.getWorldPosition(v3).project(cam); return [(v3.x * 0.5 + 0.5) * innerWidth, (-v3.y * 0.5 + 0.5) * innerHeight]; } }; // where a button is on the page (for tests)
@@ -345,16 +345,23 @@
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
     const pickAt = (e) => { ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam); return ray.intersectObjects(hits, false)[0]; };
     const press = (ud) => { buzz(); const b = ud.proxy || null; if (b) { b.userData.p = 1; if (ud.dir) b.userData.tilt = ud.dir; } if (ud.k === 'select') { rotT = Math.abs(rotT) < 0.1 ? Math.PI : 0; return; } ctl(ud.k); };
+    // a long press must not start the browser's own gestures (text selection, the callout menu), which stall the page while the finger is down
+    canvas.addEventListener('touchstart', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+    addEventListener('contextmenu', (e) => e.preventDefault()); addEventListener('selectstart', (e) => e.preventDefault());
+    let held = 0; const release = () => { clearTimeout(held); clearInterval(held); held = 0; };
     canvas.addEventListener('pointerdown', (e) => {
       if (!landed) return;
       const front = Math.abs(rot) < 0.2, hit = front ? pickAt(e) : null;
-      if (hit) { const ud = hit.object.userData; if (!ud.proxy) hit.object.userData.p = 1; press(ud); return; }
-      drag = { x: e.clientX, r: rot, moved: false }; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+      if (hit) { const ud = hit.object.userData, o = hit.object; if (!ud.proxy) o.userData.p = 1; press(ud); release();
+        if (ud.dir) held = setTimeout(() => { held = setInterval(() => { ud.proxy.userData.p = 1; ctl(ud.k); }, 140); }, 380); // holding a direction repeats it
+        return; }
+      drag = { x: e.clientX, r: rot, moved: false, dx: 0 }; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
     });
-    canvas.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x; if (Math.abs(dx) > 6) drag.moved = true; if (drag.moved) rot = rotT = drag.r + dx * (Math.PI / (innerWidth * 0.8)); });
-    const up = () => { if (!drag) return; const d = drag; drag = null; if (!d.moved) { if (Math.abs(rot) > 0.5) rotT = 0; return; } const turns = Math.round(rot / Math.PI); rotT = turns * Math.PI; if (Math.abs(turns) % 2 === 0) { rot -= rotT; rotT = 0; } };
-    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
-    let lastT = performance.now();
+    canvas.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x; drag.dx = dx; if (Math.abs(dx) > 6) drag.moved = true; if (drag.moved) rot = rotT = drag.r + dx * (Math.PI / (innerWidth * 0.55)); });
+    const up = () => { release(); if (!drag) return; const d = drag; drag = null; if (!d.moved) { if (Math.abs(rot) > 0.5) rotT = 0; return; } const turns = Math.round(d.r / Math.PI) + (Math.abs(d.dx) > 34 ? Math.sign(d.dx) : 0); rotT = turns * Math.PI; if (Math.abs(turns) % 2 === 0) { rot -= rotT; rotT = 0; } };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); addEventListener('pointerup', release); addEventListener('blur', release);
+    let lastT = performance.now(), flat = true;
+    const CORN = [[-SX, sTop], [SX, sTop], [SX, sBot], [-SX, sBot]];
     (function loop(now) {
       requestAnimationFrame(loop);
       const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
@@ -368,6 +375,14 @@
       dev.rotation.y = rot;
       if (landed && !reduced) { const w = (now - landT) / 1000; dev.rotation.x = w < 1.4 ? Math.sin(w * 19) * Math.exp(-w * 4.5) * 0.085 : 0; dev.position.y = w < 1.4 ? -Math.abs(Math.sin(w * 9.5)) * Math.exp(-w * 5) * 0.5 : 0; } // the landing: a short, settling rock
       const facing = landed && Math.abs(rot) < 0.035; if (os.classList.contains('face') !== facing) os.classList.toggle('face', facing);
+      { // the page stays glued to the screen as the device turns: it is warped onto the screen's four corners, and hidden once the device shows its back
+        const vis = landed && Math.cos(rot) > 0.04; if (os.classList.contains('vis') !== vis) os.classList.toggle('vis', vis);
+        const still = Math.abs(rot) < 0.002 && dev.rotation.x === 0 && dev.position.y === 0;
+        if (still || !vis) { if (!flat) { os.style.transform = ''; flat = true; } }
+        else { dev.updateMatrixWorld(true); const P = CORN.map(([x, y]) => { v3.set(x, y, FZ + 0.016).applyMatrix4(dev.matrixWorld).project(cam); return [(v3.x * 0.5 + 0.5) * innerWidth - base[0], (-v3.y * 0.5 + 0.5) * innerHeight - base[1]]; });
+          const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = P, dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3, den = dx1 * dy2 - dx2 * dy1;
+          if (Math.abs(den) > 1e-6) { const g = (dx3 * dy2 - dx2 * dy3) / den, hq = (dx1 * dy3 - dx3 * dy1) / den, W = base[2], H = base[3];
+            os.style.transform = `matrix3d(${(x1 - x0 + g * x1) / W},${(y1 - y0 + g * y1) / W},0,${g / W},${(x3 - x0 + hq * x3) / H},${(y3 - y0 + hq * y3) / H},0,${hq / H},0,0,1,0,${x0},${y0},0,1)`; flat = false; } } }
       for (const b of buttons) { const u = b.userData; if (u.p > 0.002) { u.p *= Math.exp(-dt * 11); b.position.z = u.z0 - 0.13 * u.p; if (u.tilt) { b.rotation.x = -u.tilt[1] * 0.12 * u.p; b.rotation.y = u.tilt[0] * 0.12 * u.p; } } }
       renderer.render(scene, cam);
     })(lastT);
