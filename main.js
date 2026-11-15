@@ -4,6 +4,7 @@
   'use strict';
 
   const canvas = document.getElementById('gl');
+  const loaded = () => { const l = document.getElementById('loading'); if (l && !l.classList.contains('done')) { l.classList.add('done'); setTimeout(() => l.remove(), 500); } }; // the 'Loading' card, shown until the console appears
 
   // a refresh always starts at the top, with the lid closed
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -23,7 +24,7 @@
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   } catch (e) {
     canvas.remove(); renderer = null;
-    if (!APP) { document.getElementById('fallback').hidden = false; return; } // (the phone version still works without WebGL: it just runs full screen, without the device around it)
+    if (!APP) { loaded(); document.getElementById('fallback').hidden = false; return; } // (the phone version still works without WebGL: it just runs full screen, without the device around it)
   }
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -78,7 +79,7 @@
       { label: 'Scholarships', kicker: 'AWARDS', title: 'Scholarships', bullets: true,
         body: ['$15,000 Scotiabank Software Engineering Scholarship', 'UWaterloo President’s Scholarship of Distinction', 'Governor General’s Bronze Academic Medal', 'Carter Family Award'] },
     ] },
-    { id: 'snake', label: 'Snake', blurb: 'Game', color: C.snake, game: true, items: [] },
+    { id: 'games', label: 'Games', blurb: 'Play', color: C.snake, games: true, items: (window.GAMES || []).map((g) => ({ label: g.name, game: g })) },
     { id: 'contact', label: 'Contact', blurb: 'Links', color: C.contact, items: [
       ['LinkedIn', 'linkedin.com/in/petar-isakovic', 'https://www.linkedin.com/in/petar-isakovic'],
       ['GitHub', 'github.com/PetarIsakovic', 'https://github.com/PetarIsakovic'],
@@ -105,6 +106,12 @@
   }
   SECTIONS[2].items.find((it) => it.label === 'What The Fit').body.push('Built at the Phia hackathon. I was one of 30 selected to compete, out of 1,000.');
   SECTIONS[2].items.find((it) => it.label === 'Beat The Clock').more = ['crowd', 'venue']; // event photos: only on the phone layout, which scrolls
+  function padIcon(c, z) { // the Games icon: a little teal controller
+    const R = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    c.fillStyle = '#1aa3b3'; R(z * 0.08, z * 0.28, z * 0.84, z * 0.46, z * 0.2); c.fill();
+    c.fillStyle = '#0c6f7c'; R(z * 0.18, z * 0.47, z * 0.22, z * 0.08, z * 0.02); c.fill(); R(z * 0.25, z * 0.4, z * 0.08, z * 0.22, z * 0.02); c.fill();
+    c.fillStyle = '#e0584d'; c.beginPath(); c.arc(z * 0.66, z * 0.46, z * 0.055, 0, 7); c.fill(); c.fillStyle = '#f2b632'; c.beginPath(); c.arc(z * 0.77, z * 0.56, z * 0.055, 0, 7); c.fill();
+  }
   SECTIONS[2].items.find((it) => it.label === 'Oyster').rowExtra = 'soon'; // the team, at the end of the screenshot row
   SECTIONS[0].items.find((it) => it.label === 'Stack').scatter = [ // logo stickers slapped on at odd angles: [key, x, y, size, tilt]
     ['t_ts', 506, 112, 74, -0.16], ['t_react', 606, 96, 84, 0.12], ['t_aws', 708, 118, 80, -0.08],
@@ -117,6 +124,7 @@
   /* ======================= phone: the console's software, full screen ======================= */
   if (APP) { phoneApp(); return; }
   function phoneApp() {
+    loaded();
     document.documentElement.classList.add('app'); if (renderer) document.documentElement.classList.add('dev'); // (set before the page is built, so the screen starts hidden; set later, it showed as a white box fading out)
     const ST = window.STICKERS || {};
     const h = (tag, cls, kids) => { const e = document.createElement(tag); if (cls) e.className = cls; (kids || []).forEach((k) => k && e.append(k)); return e; };
@@ -194,14 +202,18 @@
 
     // ---- home: the icon menu
     const ICON = ['petar', 'stackadapt', 'oyster', 'cheque', null, 'linkedin'];
-    const snakeIcon = () => h('span', 'os-snake', [h('i'), h('i'), h('i'), h('i'), h('i'), h('b')]);
+    const genv = { pic: (k) => { const im = gpics[k]; return im && im.naturalWidth ? im : null; }, load: (id) => +store.get(id + '-best') || 0, save: (id, n) => store.set(id + '-best', n), touch: true, buzz };
+    const gpics = {}; Object.keys(ST).forEach((k) => { const im = new Image(); im.src = ST[k]; gpics[k] = im; });
+    const iconCv = (draw, px) => { const c = document.createElement('canvas'), d = Math.min(2, devicePixelRatio || 1); c.width = c.height = px * d; c.className = 'os-gico'; const x = c.getContext('2d'); x.scale(d, d); const go = () => { x.clearRect(0, 0, px, px); draw(x, px); }; go(); setTimeout(go, 400); setTimeout(go, 1500); return c; }; // (redrawn once the sticker pictures have decoded)
+    const snakeIcon = () => iconCv(padIcon, 96);
     const home = h('section', 'os-view os-home', [h('div', 'os-grid', SECTIONS.map((sec, n) => btn('os-tile', [h('span', 'os-ico', [ICON[n] ? pic(ICON[n]) : snakeIcon()]), t('b', '', sec.label), t('small', '', sec.blurb)], () => push(section(sec))))),
       h('footer', 'os-foot', [t('p', '', 'Software Engineering, University of Waterloo'), h('nav', '', SECTIONS[5].items.map((it) => { const a = t('a', '', it.label); a.href = it.links[0][1]; a.target = '_blank'; a.rel = 'noopener'; return a; }))])]);
     push(home);
 
     // ---- a section: its list of entries (or the game, or the contact links)
     function section(sec) {
-      if (sec.game) return snakeView();
+      if (sec.games) return view('Games', sec.items.length + ' games', [h('div', 'os-list', sec.items.map((it) =>
+        btn('os-row', [h('span', 'os-th', [iconCv((c, z) => it.game.icon(c, z, genv), 46)]), h('span', 'os-rt', [t('b', '', it.label), t('small', '', it.game.blurb)]), t('span', 'os-go', '›')], () => push(gameView(it.game)))))]);
       if (sec.id === 'contact') return view('Contact', '', [h('div', 'os-links', sec.items.map((it) => btn('os-row', [h('span', 'os-th', [pic(it.img)]), h('span', 'os-rt', [t('b', '', it.label), t('small', '', it.sub)]), t('span', 'os-go', '↗')], () => openUrl(it.links[0][1]))))]);
       return view(sec.label, sec.items.length + (sec.items.length === 1 ? ' entry' : ' entries'), [h('div', 'os-list', sec.items.map((it, i) =>
         btn('os-row', [h('span', 'os-th', [pic(it.thumb || it.img) || t('em', '', it.label[0])]), h('span', 'os-rt', [t('b', '', it.label), t('small', '', (it.kicker || '').replace(/^1ST OVERALL · /, ''))]), it.win ? t('span', 'os-win', '1st') : null, t('span', 'os-go', '›')], () => push(page(sec, i)))))]);
@@ -229,36 +241,22 @@
     }
     function swap(v) { const was = stack.pop(); stage.append(v); stack.push(v); was.remove(); } // previous / next replace the page in place, so Back still returns to the list
 
-    // ---- Snake: swipe to steer
-    function snakeView() {
-      const N = 18, cv = h('canvas', 'os-game'); cv.width = cv.height = N * 24; const c = cv.getContext('2d');
-      const score = t('b', '', '0'), bestEl = t('span', '', ''), msg = t('p', 'os-gmsg', 'Swipe to start');
-      let body, dir, q, food, alive, started, pts, best = +store.get('snake-best') || 0, timer = 0;
-      const place = () => { do { food = [Math.random() * N | 0, Math.random() * N | 0]; } while (body.some((b) => b[0] === food[0] && b[1] === food[1])); };
-      const draw = () => {
-        c.fillStyle = '#f3f5f8'; c.fillRect(0, 0, cv.width, cv.height); c.fillStyle = '#e9ecf1';
-        for (let x = 0; x < N; x++) for (let y = 0; y < N; y++) if ((x + y) % 2) c.fillRect(x * 24, y * 24, 24, 24);
-        const cell = (p, pad, col) => { c.fillStyle = col; c.beginPath(); c.roundRect ? c.roundRect(p[0] * 24 + pad, p[1] * 24 + pad, 24 - pad * 2, 24 - pad * 2, 5) : c.rect(p[0] * 24 + pad, p[1] * 24 + pad, 24 - pad * 2, 24 - pad * 2); c.fill(); };
-        cell(food, 4, '#e0584d'); body.forEach((b, k) => cell(b, 1.5, k ? '#1aa3b3' : '#0e7f8d'));
-        score.textContent = pts; bestEl.textContent = 'Best ' + best; msg.textContent = !alive ? 'Game over. Tap to play again.' : started ? '' : 'Swipe to start';
-      };
-      const reset = () => { body = [[5, 9], [4, 9], [3, 9]]; dir = [1, 0]; q = []; alive = true; started = false; pts = 0; place(); draw(); };
-      const step = () => {
-        if (!alive || !started) return; if (q.length) dir = q.shift();
-        const hd = [body[0][0] + dir[0], body[0][1] + dir[1]];
-        if (hd[0] < 0 || hd[1] < 0 || hd[0] >= N || hd[1] >= N || body.some((b) => b[0] === hd[0] && b[1] === hd[1])) { alive = false; if (pts > best) { best = pts; store.set('snake-best', best); } buzz(); }
-        else { body.unshift(hd); if (hd[0] === food[0] && hd[1] === food[1]) { pts++; place(); } else body.pop(); }
-        draw();
-      };
-      const turn = (d) => { const last = q.length ? q[q.length - 1] : dir; if ((d[0] !== -last[0] || d[1] !== -last[1]) && (d[0] !== last[0] || d[1] !== last[1]) && q.length < 3) q.push(d); started = true; };
+    // ---- a game, filling the screen: drag, tap or swipe on it, or use the device's buttons
+    function gameView(g) {
+      const cv = h('canvas', 'os-game'), c = cv.getContext('2d'), L = t('b', '', ''), R = t('span', '', ''), wrap = h('div', 'os-gwrap', [cv]);
+      const v = view(g.name, '', [h('div', 'os-score', [L, R]), wrap]); v.classList.add('os-snakev', 'os-nosel');
+      const inst = g.make(genv); let W = 0, H = 0, raf = 0, last = 0, hud = '';
+      const size = () => { const w = Math.floor(wrap.clientWidth), hh = Math.floor(wrap.clientHeight); if (!w || !hh || (w === W && hh === H)) return; const d = Math.min(2, devicePixelRatio || 1); W = w; H = hh; cv.width = W * d; cv.height = H * d; cv.style.width = W + 'px'; cv.style.height = H + 'px'; c.setTransform(d, 0, 0, d, 0, 0); inst.resize(W, H); };
+      const loop = (now) => { raf = requestAnimationFrame(loop); if (!W) { size(); if (!W) return; inst.reset(); last = now; } const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        inst.step(dt); inst.draw(c, now / 1000); const hh = inst.hud(); if (hh.join('|') !== hud) { hud = hh.join('|'); L.textContent = hh[0]; R.textContent = hh[1]; } };
+      raf = requestAnimationFrame(loop); v.leave = () => cancelAnimationFrame(raf);
+      const at = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
       let sw = null;
-      const v = view('Snake', '', [h('div', 'os-score', [h('span', '', [t('small', '', 'Score '), score]), bestEl]), h('div', 'os-gwrap', [cv, msg])]); v.classList.add('os-snakev'); // the board is sized to whatever room is left, so all of it is always on screen
-      v.addEventListener('pointerdown', (e) => { if (e.target.closest('.os-head')) return; sw = { x: e.clientX, y: e.clientY, moved: false }; });
-      v.addEventListener('pointermove', (e) => { if (!sw) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) { if (alive) turn(Math.abs(dx) > Math.abs(dy) ? [dx > 0 ? 1 : -1, 0] : [0, dy > 0 ? 1 : -1]); sw.x = e.clientX; sw.y = e.clientY; sw.moved = true; draw(); } });
-      const end = () => { if (sw && !sw.moved && !alive) reset(); sw = null; };
+      v.addEventListener('pointerdown', (e) => { if (e.target.closest('.os-head')) return; sw = { x: e.clientX, y: e.clientY }; inst.pointer('down', ...at(e)); });
+      v.addEventListener('pointermove', (e) => { if (!sw) return; if (inst.swipe) { const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) { inst.key(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); sw.x = e.clientX; sw.y = e.clientY; } } else inst.pointer('move', ...at(e)); });
+      const end = (e) => { if (sw) inst.pointer('up', ...at(e)); sw = null; };
       v.addEventListener('pointerup', end); v.addEventListener('pointercancel', () => { sw = null; });
-      v.classList.add('os-nosel'); reset(); timer = setInterval(step, 120); v.leave = () => clearInterval(timer);
-      v.ctl = (k) => { const d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[k]; if (d) { if (alive) turn(d); draw(); return true; } if (k === 'a') { reset(); return true; } return false; };
+      v.ctl = (k) => inst.key(k);
       return v;
     }
 
@@ -396,7 +394,7 @@
   const topTex = new THREE.CanvasTexture(topCv), botTex = new THREE.CanvasTexture(botCv);
   [topTex, botTex].forEach((t) => { t.encoding = THREE.sRGBEncoding; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); const mips = !phone.matches; t.minFilter = mips ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter; t.generateMipmaps = mips; }); // (phones show the screens close to full size, and building mipmaps on every update is costly there) // mipmaps: the screens are usually drawn smaller than their canvases
 
-  const S = { sec: null, i: 0, home: 0, booted: false, changed: 0 };
+  const S = { sec: null, i: 0, home: 0, booted: false, changed: 0, hot: '', play: null };
   let regions = []; // tappable areas on the bottom screen, in canvas px
 
   function rr(c, x, y, w, h, r) {
@@ -427,9 +425,16 @@
   const pic = (k) => (k && PICS[k] && PICS[k].naturalWidth ? PICS[k] : null);
 
   // Stereo 3D for the top screen (red/cyan glasses). Each layer gets a depth; the two eyes see it shifted apart.
-  let eye = 0, depth3d = 0;                       // eye: -1 left, +1 right, 0 flat. depth3d: the slider, 0..1
-  const mainTc = tc, eyeCx = [mk(TW, TH), mk(TW, TH)].map((c) => c.getContext('2d'));
-  const layer = (z) => tc.setTransform(1, 0, 0, 1, -eye * z * 9 * depth3d, 0); // z > 0 pops out, z < 0 sinks in
+  // Real depth for the top screen: with the 3D slider up, the screen is drawn as three sheets, the background on the glass and the
+  // text and pictures on two clear sheets floating in front of it, so turning the console shows them standing off the screen.
+  // Each drawing step names its depth with layer(z); while one sheet is being drawn, anything meant for another is drawn off the canvas.
+  let depth3d = 0, pass = -1;                      // depth3d: the slider, 0..1. pass: the sheet being drawn (-1: all of them, flat)
+  const mainTc = tc, popCx = [mk(TW, TH), mk(TW, TH)].map((c) => c.getContext('2d'));
+  const popTex = popCx.map((c) => { const x = new THREE.CanvasTexture(c.canvas); x.encoding = THREE.sRGBEncoding; x.anisotropy = renderer.capabilities.getMaxAnisotropy(); return x; });
+  const shCx = mk(TW, TH).getContext('2d');
+  const sheetOf = (z) => (z < 0.25 ? 0 : z < 1.2 ? 1 : 2);
+  const shift = [[0, 0], [0, 0], [0, 0]]; // how far each sheet's drawing slides against the background (the pointer parallax), in screen pixels
+  const layer = (z) => { const on = pass < 0 || sheetOf(z) === pass, sh = pass > 0 ? shift[pass] : shift[0]; tc.setTransform(1, 0, 0, 1, on ? sh[0] : 1e5, on ? sh[1] : 0); };
 
   function backdrop(c, W, H) {
     c.globalAlpha = 1;
@@ -466,14 +471,24 @@
     }
     return lv[i];
   }
-  const fitPic = (c, im, cx, cy, w, h) => { if (!im) return; const s = Math.min(w / im.naturalWidth, h / im.naturalHeight), dw = im.naturalWidth * s, dh = im.naturalHeight * s; c.imageSmoothingQuality = 'high'; c.drawImage(mip(im, dw), cx - dw / 2, cy - dh / 2, dw, dh); };
+  // With 3D on, each sticker on the nearest sheet becomes its own solid object, so blit() records it (picture, place, size, turn)
+  // instead of painting it, and paints its silhouette into the shadow source.
+  const grabbed = []; let grab = false; const shSrc = mk(TW, TH).getContext('2d');
+  const blit = (c, im, src, x, y, w, h) => {
+    if (grab && c === popCx[1]) { const m = c.getTransform(); if (m.e > 5e4) return; // (not on this sheet)
+      const px = x + w / 2, py = y + h / 2, sx = Math.hypot(m.a, m.b);
+      grabbed.push({ im, X: m.a * px + m.c * py + m.e, Y: m.b * px + m.d * py + m.f, w: w * sx, h: h * sx, rot: Math.atan2(m.b, m.a), a: c.globalAlpha });
+      shSrc.setTransform(m); shSrc.globalAlpha = c.globalAlpha; shSrc.drawImage(src, x, y, w, h); return; }
+    c.drawImage(src, x, y, w, h);
+  };
+  const fitPic = (c, im, cx, cy, w, h) => { if (!im) return; const s = Math.min(w / im.naturalWidth, h / im.naturalHeight), dw = im.naturalWidth * s, dh = im.naturalHeight * s; c.imageSmoothingQuality = 'high'; blit(c, im, mip(im, dw), cx - dw / 2, cy - dh / 2, dw, dh); };
   function drawPic(im, cx, cy, bw, bh, t, a, shadow) {
     const s = Math.min(bw / im.naturalWidth, bh / im.naturalHeight) * (0.92 + 0.08 * a);
     const w = im.naturalWidth * s, h = im.naturalHeight * s;
     tc.save(); tc.globalAlpha = a;
     if (shadow) { tc.fillStyle = 'rgba(0,0,0,.13)'; tc.beginPath(); tc.ellipse(cx, cy + bh / 2 + 10, w * 0.34, 7, 0, 0, 7); tc.fill(); }
     tc.translate(cx, cy + Math.sin(t * 1.4) * (shadow ? 3 : 1.5));
-    tc.imageSmoothingQuality = 'high'; tc.drawImage(mip(im, w), -w / 2, -h / 2, w, h);
+    tc.imageSmoothingQuality = 'high'; blit(tc, im, mip(im, w), -w / 2, -h / 2, w, h);
     tc.restore();
   }
   const hint = (label) => { // "A  Open ..." along the bottom of the top screen
@@ -488,9 +503,10 @@
     layer(-1); backdrop(tc, TW, TH); layer(0); status('About');
     layer(1.0);
     const PX = 44, PY = 84, PW = 200, PH = 252, ph = pic('photo');
-    tc.save(); rr(tc, PX, PY, PW, PH, 10); tc.clip(); tc.fillStyle = '#dfe3e8'; tc.fillRect(PX, PY, PW, PH);
+    if (solid() && ph) { const sh = ph.naturalHeight / 1.04, sw = sh * PW / PH, c = roundPic(ph, (ph.naturalWidth - sw) / 2, (ph.naturalHeight - sh) * 0.3, sw, sh, PW, PH, 10, false); layer(1.4); tc.save(); tc.globalAlpha = a; blit(tc, c, c, PX, PY, PW, PH); tc.restore(); layer(1.0); }
+    else { tc.save(); rr(tc, PX, PY, PW, PH, 10); tc.clip(); tc.fillStyle = '#dfe3e8'; tc.fillRect(PX, PY, PW, PH);
     if (ph) { const sh = ph.naturalHeight / 1.04, sw = sh * PW / PH; tc.globalAlpha = a; tc.drawImage(ph, (ph.naturalWidth - sw) / 2, (ph.naturalHeight - sh) * 0.3, sw, sh, PX, PY, PW, PH); tc.globalAlpha = 1; }
-    tc.restore();
+    tc.restore(); }
     layer(0.5); const X = 272 + (1 - a) * 14; tc.globalAlpha = a;
     if (onPhone()) { // phone: fewer, larger lines
       tc.fillStyle = INK; font(tc, 600, 50); tc.fillText('Petar Isakovic', X - 2, 134);
@@ -525,7 +541,7 @@
     { title: 'Work', sub: ['Three internships: StackAdapt, Zomp', 'and Heseri Games.'], pics: [['stackadapt', 498, 142, 116, -0.1], ['voodoo', 640, 118, 84, 0.1], ['waterloo', 734, 208, 90, -0.07], ['zomp', 566, 262, 94, 0.08], ['heseri', 668, 348, 186, -0.05], ['goose', 462, 338, 94, 0.1]] },
     { title: 'Projects', sub: ['Ten projects. Three of them took', 'first place at hackathons.'], pics: [['oyster', 528, 150, 178, -0.06], ['boxhead', 706, 152, 118, 0.08], ['proteful', 470, 312, 90, 0.1], ['knight', 578, 332, 82, -0.09], ['pac', 676, 300, 84, 0.08], ['mvc_icon', 744, 362, 68, -0.1]] },
     { title: 'Awards', sub: ['Four first-place hackathon finishes', 'and four scholarships.'], pics: [['soon', 594, 148, 280, -0.04], ['cheque', 506, 322, 188, 0.05], ['four', 682, 316, 148, -0.06]] },
-    { title: 'Snake', sub: ['A quick game. Steer with the D-pad,', 'press A to restart.'], snake: true },
+    { title: 'Games', sub: ['Six small games: Snake, Bricks,', 'Goose Glide, and three more.'], games: true },
     { title: 'Contact', sub: ['LinkedIn, GitHub, X and Devpost.'], pics: [['linkedin', 492, 172, 110, -0.08], ['github', 632, 132, 102, 0.07], ['xlogo', 566, 312, 96, 0.06], ['devpost', 712, 272, 106, -0.06]] },
   ];
   function drawHomeTop(t, a) {
@@ -540,6 +556,10 @@
       tc.shadowColor = 'rgba(30,40,55,.2)'; tc.shadowBlur = 10; tc.shadowOffsetY = 4;
       drawPic(im, 0, 0, w, w, t + i * 1.7, on, false); tc.restore();
     });
+    if (art.games) (window.GAMES || []).forEach((g, i) => { // the six game icons, tilted, landing one after another
+      const on = Math.max(0, Math.min(1, a * 1.8 - i * 0.1)), x = 470 + (i % 3) * 114, y = 150 + Math.floor(i / 3) * 128, z = 92;
+      tc.save(); tc.translate(x, y + Math.sin(t * 1.1 + i) * 2); tc.rotate([-0.08, 0.06, -0.04, 0.07, -0.06, 0.05][i]); tc.scale(0.8 + 0.2 * on, 0.8 + 0.2 * on); tc.globalAlpha = on;
+      tc.shadowColor = 'rgba(30,40,55,.16)'; tc.shadowBlur = 12; tc.shadowOffsetY = 4; const ic = iconPic(g); blit(tc, ic, ic, -z / 2, -z / 2, z, z); tc.restore(); });
     if (art.snake) { // a small game board, with a snake doing laps and eating the apple
       const CS = 22, NX = 13, NY = 12, BX = 756 - NX * CS, BY = 100;
       tc.save(); tc.globalAlpha = a;
@@ -573,7 +593,18 @@
     hint('Open ' + art.title);
   }
 
+  // With 3D on, a photo or screenshot is drawn once into its own rounded picture, so it can stand up as a solid tile like the stickers
+  const roundPics = new Map();
+  function roundPic(src, sx, sy, sw, sh, w, h, r, edge) {
+    const key = w.toFixed(0) + 'x' + h.toFixed(0); let e = roundPics.get(src); if (e && e.key === key) return e.c;
+    const c = mk(Math.round(w * 2), Math.round(h * 2)), x = c.getContext('2d'); x.scale(2, 2); rr(x, 0, 0, w, h, r); x.save(); x.clip(); x.fillStyle = '#dfe3e8'; x.fillRect(0, 0, w, h);
+    x.imageSmoothingQuality = 'high'; x.drawImage(src, sx, sy, sw, sh, 0, 0, w, h); x.restore();
+    if (edge) { x.strokeStyle = 'rgba(42,45,51,.22)'; x.lineWidth = 1.2; rr(x, 0.6, 0.6, w - 1.2, h - 1.2, r); x.stroke(); }
+    c.naturalWidth = c.width; c.naturalHeight = c.height; roundPics.set(src, { key, c }); return c;
+  }
+  const solid = () => popped && pass >= 0;
   function shotFrame(g, x, y, w, h, a) { // a screenshot in a thin rounded frame
+    if (solid()) { const c = roundPic(g, 0, 0, g.naturalWidth, g.naturalHeight, w, h, 9, true); layer(1.4); tc.save(); tc.globalAlpha = a; blit(tc, c, c, x, y, w, h); tc.restore(); layer(0.9); return; }
     tc.save(); tc.globalAlpha = a;
     tc.shadowColor = 'rgba(30,40,55,.2)'; tc.shadowBlur = 14; tc.shadowOffsetY = 4; tc.fillStyle = '#fff'; rr(tc, x, y, w, h, 9); tc.fill();
     tc.shadowColor = 'transparent'; rr(tc, x, y, w, h, 9); tc.clip(); tc.imageSmoothingQuality = 'high'; tc.drawImage(mip(g, w), x, y, w, h); tc.restore();
@@ -632,7 +663,32 @@
       }
     }
   }
+  // each game's icon on its white tile, drawn once into a small picture (so with 3D on it becomes a solid block like the stickers)
+  const iconPics = {};
+  function iconPic(g) {
+    let e = iconPics[g.id]; const now = performance.now();
+    if (!e) e = iconPics[g.id] = { c: mk(240, 240), at: -1e9, n: 0 };
+    if (e.n < 6 && now - e.at > 700) { e.at = now; e.n++; const x = e.c.getContext('2d'); x.clearRect(0, 0, 240, 240); x.fillStyle = TILE; rr(x, 0, 0, 240, 240, 38); x.fill(); x.save(); x.translate(24, 24); g.icon(x, 192, genv); x.restore(); const tx = picTex.get(e.c); if (tx) tx.needsUpdate = true; } // (redrawn a few times while the sticker pictures finish loading)
+    e.c.naturalWidth = 240; e.c.naturalHeight = 240; return e.c;
+  }
+  function gameCard(g, t, a) { // the Games menu: what the highlighted game is and how to play it
+    layer(-1); backdrop(tc, TW, TH); layer(0); status('Games');
+    layer(1.4); const z = 230; tc.save(); tc.translate(600, 230 + Math.sin(t * 1.2) * 3); tc.rotate(-0.04); tc.globalAlpha = a;
+    tc.shadowColor = 'rgba(30,40,55,.18)'; tc.shadowBlur = 18; tc.shadowOffsetY = 6; const ic = iconPic(g); blit(tc, ic, ic, -z / 2, -z / 2, z, z); tc.restore();
+    layer(0.6); const X = 44 + (1 - a) * 14; tc.globalAlpha = a;
+    font(tc, 600, 12.5); tc.fillStyle = MUTE; spaced(tc, 'GAME', X, 96, 1.2);
+    tc.fillStyle = INK; font(tc, 600, 44); tc.fillText(g.name, X - 2, 146);
+    tc.fillStyle = SOFT; font(tc, 400, 19); wrap(tc, g.blurb, 380).forEach((ln, i) => tc.fillText(ln, X, 186 + i * 27));
+    font(tc, 400, 16.5); tc.fillStyle = MUTE; g.how.forEach((ln, i) => { tc.beginPath(); tc.arc(X + 5, 256 + i * 30 - 6, 3, 0, 7); tc.fill(); tc.fillText(ln, X + 20, 256 + i * 30); });
+    const b = +store.get(g.id + '-best') || 0; if (b) { tc.fillStyle = ACC; font(tc, 600, 16); tc.fillText((g.id === 'match' ? 'Best: ' + b + ' moves' : 'Best: ' + b), X, 340); }
+    tc.globalAlpha = 1; layer(0); hint('Play ' + g.name);
+  }
+  function playTop(t) { // a game running on the top screen, under the status bar
+    backdrop(tc, TW, TH); status(S.play.g.name);
+    tc.save(); tc.beginPath(); tc.rect(0, 44, TW, TH - 44); tc.clip(); tc.translate(0, 44); S.play.inst.draw(tc, t); tc.restore(); tc.textAlign = 'left'; tc.textBaseline = 'alphabetic'; tc.globalAlpha = 1;
+  }
   function drawCard(it, sec, t, a) {
+    if (it.game) { gameCard(it.game, t, a); return; }
     if (onPhone() && !it.stats) { phoneCard(it, sec, t, a); return; }
     padMax = 0;
     layer(-1); backdrop(tc, TW, TH); layer(0); status(sec.label); layer(0.5);
@@ -711,10 +767,11 @@
   }
 
   // power-on sequence: both screens come up white, the wordmark fades in, then it cuts to the home screen
-  const BOOT = 2.6;
+  const BOOT = 1.5;
   const isBooting = () => !reduced && S.booted && performance.now() / 1000 - S.bootAt < BOOT;
   const ramp = (u, a, b) => Math.max(0, Math.min(1, (u - a) / (b - a)));
   function bootScreen(c, W, H, u, top) {
+    u *= 2.6 / BOOT; // (the steps below were timed for a 2.6 s sequence; this plays them faster)
     c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
     c.globalAlpha = ramp(u, 0.05, 0.4); c.fillStyle = '#f3f4f6'; c.fillRect(0, 0, W, H);
     c.textAlign = 'center'; c.textBaseline = 'alphabetic';
@@ -728,7 +785,7 @@
       c.fillText('Starting up', W / 2, H / 2 - 4);
       for (let i = 0; i < 3; i++) { c.globalAlpha = ramp(u, 0.7, 1.1) * (0.25 + 0.75 * Math.max(0, Math.sin(u * 5 - i * 0.9))); c.fillStyle = ACC; c.beginPath(); c.arc(W / 2 - 16 + i * 16, H / 2 + 26, 4, 0, 7); c.fill(); }
     }
-    c.globalAlpha = ramp(u, BOOT - 0.4, BOOT - 0.05); c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+    c.globalAlpha = ramp(u, 2.2, 2.55); c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
     c.globalAlpha = 1; c.textAlign = 'left';
   }
 
@@ -770,34 +827,37 @@
     if (isBooting()) { bootScreen(tc, TW, TH, t - S.bootAt, true); return; }
     if (!S.booted) { tc.globalAlpha = 1; tc.fillStyle = '#000'; tc.fillRect(0, 0, TW, TH); }
     else if (!S.sec) { padMax = 0; drawHomeTop(t, a); }
-    else if (S.sec.game) { padMax = 0; snake.draw(); }
+    else if (S.play) { padMax = 0; playTop(t); }
     else drawCard(S.sec.items[S.i], S.sec, t, a);
   }
+  let popped = false; const rise = [{ v: 0, s: 0, k: 70 }, { v: 0, s: 0, k: 42 }]; // each sheet springs up to the slider's depth (the far one a little behind), overshoots a touch and settles
+  const look = { x: 0, y: 0, tx: 0, ty: 0 }; // the pointer anywhere on the page, -1..1
+  addEventListener('pointermove', (e) => { look.tx = (e.clientX / innerWidth) * 2 - 1; look.ty = (e.clientY / innerHeight) * 2 - 1; });
   function drawTop() {
     const t = reduced ? 0 : performance.now() / 1000;
     const k = reduced ? 1 : Math.max(0, Math.min(1, (t - S.changed) / 0.28)), a = 1 - Math.pow(1 - k, 3);
-    if (depth3d > 0 && S.booted && !(S.sec && S.sec.game)) {
-      // draw once per eye, keep red from the left and cyan from the right, then add them together
-      eyeCx.forEach((cx, i) => {
-        tc = cx; eye = i ? 1 : -1;
-        tc.setTransform(1, 0, 0, 1, 0, 0); paintTop(t, a);
-        tc.setTransform(1, 0, 0, 1, 0, 0); tc.globalAlpha = 1;
-        tc.globalCompositeOperation = 'multiply'; tc.fillStyle = i ? '#00ffff' : '#ff0000'; tc.fillRect(0, 0, TW, TH);
-        tc.globalCompositeOperation = 'source-over';
-      });
-      tc = mainTc; eye = 0;
-      tc.setTransform(1, 0, 0, 1, 0, 0); tc.globalAlpha = 1; tc.fillStyle = '#000'; tc.fillRect(0, 0, TW, TH);
-      tc.globalCompositeOperation = 'lighter';
-      tc.drawImage(eyeCx[0].canvas, 0, 0); tc.drawImage(eyeCx[1].canvas, 0, 0);
-      tc.globalCompositeOperation = 'source-over';
-    } else { eye = 0; tc.setTransform(1, 0, 0, 1, 0, 0); paintTop(t, a); }
+    popped = (depth3d > 0 || rise[1].v > 0.004) && S.booted && !isBooting() && !S.play && !onPhone();
+    if (popped) {
+      
+      grabbed.length = 0; grab = true; shSrc.setTransform(1, 0, 0, 1, 0, 0); shSrc.clearRect(0, 0, TW, TH);
+      popCx.forEach((cx, i) => { tc = cx; pass = i + 1; tc.setTransform(1, 0, 0, 1, 0, 0); tc.globalAlpha = 1; tc.clearRect(0, 0, TW, TH); paintBody(t, a); popTex[i].needsUpdate = true; });
+      grab = false; pass = 0; tc = mainTc; tc.setTransform(1, 0, 0, 1, 0, 0); paintTop(t, a);   // the glass: background, bars, and anything shown over the page
+      // each floating sheet casts a soft shadow on the glass, offset by how high it floats: the strongest cue that it is standing off the screen
+      popCx.forEach((cx, i) => { shCx.setTransform(1, 0, 0, 1, 0, 0); shCx.globalCompositeOperation = 'source-over'; shCx.clearRect(0, 0, TW, TH); shCx.drawImage(cx.canvas, 0, 0); if (i) { shCx.globalAlpha = 1; shCx.drawImage(shSrc.canvas, 0, 0); }
+        shCx.globalCompositeOperation = 'source-in'; shCx.fillStyle = '#0d1a22'; shCx.fillRect(0, 0, TW, TH); shCx.globalCompositeOperation = 'source-over';
+        const rv = Math.max(0, rise[i].v), d = rv * (i ? 38 : 16); tc.save(); tc.globalAlpha = 0.2 * Math.min(1, rv * 3); tc.filter = `blur(${(i ? 9 : 5) * rv + 1}px)`; tc.drawImage(shCx.canvas, d * 0.7, d); tc.restore(); });
+      const v = 34 * Math.max(0, rise[0].v); [[0, 0, TW, v, 0, 0, 0, v], [0, TH - v, TW, v, 0, TH, 0, TH - v], [0, 0, v, TH, 0, 0, v, 0], [TW - v, 0, v, TH, TW, 0, TW - v, 0]].forEach(([x, y, w, hh, x0, y0, x1, y1]) => {
+        const gr = tc.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, 'rgba(10,20,28,.22)'); gr.addColorStop(1, 'rgba(10,20,28,0)'); tc.fillStyle = gr; tc.fillRect(x, y, w, hh); }); // the background sits down in a box behind the glass
+      tc = mainTc; pass = -1;
+    } else { pass = -1; tc.setTransform(1, 0, 0, 1, 0, 0); paintTop(t, a); }
     topTex.needsUpdate = true;
   }
 
   function tile(x, y, w, h, on, color, fn) { // a white tile with a soft drop shadow; teal ring when selected
     rr(bc, x, y + 2, w, h, 12); bc.fillStyle = 'rgba(0,0,0,.07)'; bc.fill();
-    rr(bc, x, y, w, h, 12); bc.fillStyle = on ? TINT : TILE; bc.fill();
-    bc.lineWidth = on ? 2.5 : 1; bc.strokeStyle = on ? ACC : LINE; bc.stroke();
+    const hv = !on && fn && S.hot === x + ',' + y; // the pointer is over it: a lighter version of the selected look
+    rr(bc, x, y, w, h, 12); bc.fillStyle = on || hv ? TINT : TILE; bc.fill();
+    bc.lineWidth = on ? 2.5 : hv ? 1.5 : 1; bc.strokeStyle = on || hv ? ACC : LINE; bc.stroke();
     if (fn) regions.push({ x, y, w, h, fn });
   }
 
@@ -817,7 +877,7 @@
         tile(x, y, w, h, on, null, () => enter(i)); regions[regions.length - 1].home = i;
         const im = pic(HOME_ICON[i]), cx = x + w / 2, cy = y + 84;
         if (im) fitPic(bc, im, cx, cy, 126, 108);
-        else { [[-2, 0], [-1, 0], [0, 0], [0, -1], [1, -1]].forEach(([dx, dy], q) => { bc.fillStyle = q === 4 ? '#0e7f8d' : ACC; rr(bc, cx + dx * 26 - 11, cy + dy * 26 + 2, 22, 22, 5); bc.fill(); }); bc.fillStyle = '#e0584d'; rr(bc, cx + 41, cy + 28, 22, 22, 5); bc.fill(); }
+        else { bc.save(); bc.translate(cx - 66, cy - 66); padIcon(bc, 132); bc.restore(); }
         bc.textAlign = 'center'; bc.fillStyle = INK; font(bc, on ? 600 : 500, onPhone() ? 25 : 17.5); bc.fillText(s.label, cx, y + h - (onPhone() ? 18 : 22)); bc.textAlign = 'left';
       });
       botTex.needsUpdate = true;
@@ -826,10 +886,11 @@
 
     const sec = S.sec;
     bar(bc, BW, '', sec.label);
-    regions.push({ x: 0, y: 0, w: 150, h: 48, fn: goHome });
+    regions.push({ x: 0, y: 0, w: 150, h: 48, fn: S.play ? stopGame : goHome });
+    if (S.hot === '0,0') { rr(bc, 8, 8, 92, 32, 9); bc.fillStyle = TINT; bc.fill(); }
     bc.fillStyle = ACC; font(bc, 500, onPhone() ? 23 : 16); bc.fillText('‹  Back', 20, onPhone() ? 31 : 28);
 
-    if (sec.game) { snake.drawPad(); botTex.needsUpdate = true; return; }
+    if (S.play) { gamePad(); botTex.needsUpdate = true; return; }
 
     const n = sec.items.length, cols = n > 5 ? 2 : 1, rows = Math.ceil(n / cols);
     sec.cols = cols;
@@ -841,7 +902,8 @@
       const x = 20 + (i % cols) * (w + gap), y = top + Math.floor(i / cols) * (h + gap), on = i === S.i;
       tile(x, y, w, h, on, null, () => { S.i = i; redraw(); });
       const th = pic(it.thumb || it.img); let tx = x + 18;
-      if (th) { fitPic(bc, th, x + 32, y + h / 2, 40, Math.min(40, h - 14)); tx = x + 62; }
+      if (it.game) { const z = Math.min(44, h - 10); bc.save(); bc.translate(x + 32 - z / 2, y + h / 2 - z / 2); it.game.icon(bc, z, genv); bc.restore(); tx = x + 62; }
+      else if (th) { fitPic(bc, th, x + 32, y + h / 2, 40, Math.min(40, h - 14)); tx = x + 62; }
       bc.fillStyle = INK; font(bc, on ? 600 : 500, onPhone() ? (cols > 1 ? 21 : 26) : h < 56 ? 17 : 18.5);
       bc.fillText(it.label, tx, y + h / 2 + 6.5);
       if (it.win) { bc.textAlign = 'right'; font(bc, 500, 12.5); bc.fillStyle = MUTE; bc.fillText('1st', x + w - 14, y + h / 2 + 5); bc.textAlign = 'left'; }
@@ -850,8 +912,8 @@
       const lw = (BW - 40 - gap * (links.length - 1)) / links.length;
       links.forEach(([label, url], i) => {
         const x = 20 + i * (lw + gap);
-        rr(bc, x, 412, lw, 50, 12);
-        if (i === 0) { bc.fillStyle = ACC; bc.fill(); } else { bc.fillStyle = TILE; bc.fill(); bc.lineWidth = 1; bc.strokeStyle = LINE; bc.stroke(); }
+        rr(bc, x, 412, lw, 50, 12); const hv = S.hot === x + ',406';
+        if (i === 0) { bc.fillStyle = hv ? '#128a98' : ACC; bc.fill(); } else { bc.fillStyle = hv ? TINT : TILE; bc.fill(); bc.lineWidth = hv ? 1.5 : 1; bc.strokeStyle = hv ? ACC : LINE; bc.stroke(); }
         regions.push({ x, y: 406, w: lw, h: 62, fn: () => openUrl(url) });
         bc.fillStyle = i === 0 ? '#fff' : INK; font(bc, 600, onPhone() ? 23 : 16.5); bc.textAlign = 'center';
         bc.fillText('Open ' + label, x + lw / 2, 443); bc.textAlign = 'left';
@@ -861,78 +923,31 @@
   }
   function redraw() { S.changed = performance.now() / 1000; drawTop(); drawBottom(); }
 
-  /* ======================= snake (plays on the top screen) ======================= */
-  const snake = (() => {
-    const W = 40, H = 21, Sz = 20, OY = 44;
-    let body, dir, queue, food, alive, score, started, timer;
-    let best = +store.get('snake-best') || 0;
-    const place = () => { do { food = [Math.random() * W | 0, Math.random() * H | 0]; } while (body.some((s) => s[0] === food[0] && s[1] === food[1])); };
-    function reset() { body = [[10, 11], [9, 11], [8, 11]]; dir = [1, 0]; queue = []; alive = true; score = 0; started = false; place(); }
-    function tick() {
-      if (alive && started) {
-        if (queue.length) dir = queue.shift();
-        const h = [body[0][0] + dir[0], body[0][1] + dir[1]];
-        if (h[0] < 0 || h[1] < 0 || h[0] >= W || h[1] >= H || body.some((s) => s[0] === h[0] && s[1] === h[1])) {
-          alive = false;
-          if (score > best) { best = score; store.set('snake-best', best); }
-        } else {
-          body.unshift(h);
-          if (h[0] === food[0] && h[1] === food[1]) { score++; place(); } else body.pop();
-        }
-        redraw();
-      }
-    }
-    function draw() {
-      topFrame(C.snake, 'Snake');
-      tc.fillStyle = 'rgba(0,0,0,.035)';
-      for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) if ((x + y) % 2) tc.fillRect(x * Sz, OY + y * Sz, Sz, Sz);
-      tc.fillStyle = '#e0584d'; rr(tc, food[0] * Sz + 3, OY + food[1] * Sz + 3, Sz - 6, Sz - 6, 3); tc.fill();
-      body.forEach((s, i) => { tc.fillStyle = i ? '#1aa3b3' : '#0e7f8d'; rr(tc, s[0] * Sz + 1, OY + s[1] * Sz + 1, Sz - 2, Sz - 2, 3); tc.fill(); });
-      tc.textAlign = 'center';
-      if (!started && alive) { tc.fillStyle = '#2a2d33'; font(tc, 600, onPhone() ? 34 : 26); tc.fillText(onPhone() ? 'Swipe to start' : 'Press any direction to start', TW / 2, 258); }
-      if (!alive) {
-        tc.fillStyle = 'rgba(244,245,247,.88)'; tc.fillRect(0, OY, TW, TH - OY);
-        tc.fillStyle = '#2a2d33'; font(tc, 700, 44); tc.fillText('Game over', TW / 2, 250);
-        tc.fillStyle = '#7a808a'; font(tc, 500, 20); tc.fillText(onPhone() ? `Score ${score}. Tap to play again.` : `Score ${score}. Press A to try again.`, TW / 2, 290);
-      }
-      tc.textAlign = 'left';
-    }
-    function drawPad() { // bottom screen: score + touch arrows
-      bc.fillStyle = '#2a2d33'; font(bc, 700, 60); bc.fillText(String(score), 28, 150);
-      bc.fillStyle = '#7a808a'; font(bc, 500, 16); bc.fillText('Score', 30, 176); bc.fillText('Best  ' + best, 30, 204);
-      const cx = 430, cy = 270, s = 92;
-      [['up', 0, -1, '▲'], ['down', 0, 1, '▼'], ['left', -1, 0, '◀'], ['right', 1, 0, '▶']].forEach(([k, dx, dy, g]) => {
-        const x = cx + dx * (s + 8) - s / 2, y = cy + dy * (s + 8) - s / 2;
-        tile(x, y, s, s, false, C.snake, () => key(k));
-        bc.fillStyle = '#2a2d33'; font(bc, 500, 26); bc.textAlign = 'center'; bc.fillText(g, x + s / 2, y + s / 2 + 11); bc.textAlign = 'left';
-      });
-      rr(bc, 24, 400, 200, 50, 8); bc.lineWidth = 1.5; bc.strokeStyle = '#2a2d33'; bc.stroke();
-      regions.push({ x: 24, y: 394, w: 200, h: 64, fn: () => key('a') });
-      bc.fillStyle = '#2a2d33'; font(bc, 600, 17); bc.textAlign = 'center'; bc.fillText(alive ? 'Restart' : 'Play again', 124, 431); bc.textAlign = 'left';
-    }
-    function onKey(k) {
-      const d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[k];
-      if (d) {
-        const last = queue.length ? queue[queue.length - 1] : dir;
-        if (d[0] !== -last[0] || d[1] !== -last[1]) queue.push(d);
-        if (!started) { started = true; redraw(); }
-        return true;
-      }
-      if (k === 'a') { reset(); started = true; redraw(); return true; }
-      return false;
-    }
-    return { start() { reset(); clearInterval(timer); timer = setInterval(tick, 95); }, stop() { clearInterval(timer); }, draw, drawPad, key: onKey, over: () => !alive };
-  })();
+  /* ======================= games (games.js; they play on the top screen) ======================= */
+  const genv = { pic: (k) => pic(k), load: (id) => +store.get(id + '-best') || 0, save: (id, n) => store.set(id + '-best', n), touch: matchMedia('(pointer: coarse)').matches, buzz: () => {} };
+  function startGame(i) { const g = S.sec.items[i].game, inst = g.make(genv); inst.resize(TW, TH - 44); inst.reset(); S.play = { g, inst, hud: '' }; redraw(); }
+  function stopGame() { S.play = null; redraw(); }
+  function gamePad() { // bottom screen while playing: the score, arrows and an A button (the console's own buttons and the keyboard work too)
+    const [l, r] = S.play.inst.hud(); S.play.hud = l + '|' + r;
+    bc.fillStyle = INK; font(bc, 700, 34); bc.fillText(l, 28, 120); bc.fillStyle = MUTE; font(bc, 500, 17); bc.fillText(r, 30, 150);
+    const cx = 450, cy = 262, z = 84;
+    [['up', 0, -1, '▲'], ['down', 0, 1, '▼'], ['left', -1, 0, '◀'], ['right', 1, 0, '▶']].forEach(([k, dx, dy, gl]) => {
+      const x = cx + dx * (z + 8) - z / 2, y = cy + dy * (z + 8) - z / 2;
+      tile(x, y, z, z, false, null, () => key(k));
+      bc.fillStyle = INK; font(bc, 500, 24); bc.textAlign = 'center'; bc.fillText(gl, x + z / 2, y + z / 2 + 9); bc.textAlign = 'left';
+    });
+    tile(60, 300, 120, 120, false, null, () => key('a')); bc.fillStyle = '#e0584d'; bc.beginPath(); bc.arc(120, 360, 34, 0, 7); bc.fill();
+    bc.fillStyle = '#fff'; font(bc, 700, 26); bc.textAlign = 'center'; bc.fillText('A', 120, 369); bc.textAlign = 'left';
+  }
+  function gamePtr(type, uv) { if (S.play && uv) S.play.inst.pointer(type, uv.x * TW, (1 - uv.y) * TH - 44); }
 
   /* ======================= navigation ======================= */
   function enter(i) {
-    S.home = i; S.sec = SECTIONS[i]; S.i = 0;
-    if (S.sec.game) snake.start();
+    S.home = i; S.sec = SECTIONS[i]; S.i = 0; S.play = null;
     redraw();
   }
   function goHome() {
-    if (S.sec && S.sec.game) snake.stop();
-    S.sec = null; redraw();
+    S.play = null; S.sec = null; redraw();
   }
   // Up Up Down Down Left Right Left Right B A Start
   const KONAMI = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'b', 'a', 'start'];
@@ -1006,6 +1021,7 @@
     }
     if (k === 'power') { scrollClosed(); return; }   // power button shuts the console
     if (isBooting()) return;
+    if (S.play && k !== 'start' && k !== 'x') { if (k === 'b') stopGame(); else S.play.inst.key(k); return; } // a game takes every button but B (back to the menu) and HOME
     const was = S.home + '|' + S.i; // only redraw (and replay the slide-in) when the selection really changes
     if (k === 'l' || k === 'r') { // shoulder buttons step through whatever is on screen
       const d = k === 'r' ? 1 : -1;
@@ -1016,7 +1032,6 @@
     }
     if (k === 'y') return; // Y does nothing; only the power button (or scrolling up) closes the lid
     if (k === 'start' || k === 'x') { if (S.sec || S.home !== 0) { S.home = 0; goHome(); } return; } // HOME: back to the first screen
-    if (S.sec && S.sec.game && snake.key(k)) return;
     const mv = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[k];
     if (!S.sec) {
       if (mv) { const n = S.home + mv[0] + mv[1] * 3; if (n >= 0 && n < SECTIONS.length && !(mv[0] && Math.floor(n / 3) !== Math.floor(S.home / 3))) S.home = n; }
@@ -1024,7 +1039,7 @@
     } else {
       const cols = S.sec.cols || 1, n = S.sec.items.length;
       if (mv && n) { const t = S.i + mv[0] + mv[1] * cols; if (t >= 0 && t < n && !(mv[0] && (cols === 1 || Math.floor(t / cols) !== Math.floor(S.i / cols)))) S.i = t; }
-      else if (k === 'a') { const it = S.sec.items[S.i]; if (it && it.links) openUrl(it.links[0][1]); return; }
+      else if (k === 'a') { const it = S.sec.items[S.i]; if (it && it.game) return startGame(S.i); if (it && it.links) openUrl(it.links[0][1]); return; }
       else if (k === 'b') return goHome();
     }
     if (was !== S.home + '|' + S.i) redraw();
@@ -1156,9 +1171,9 @@
     const t = new THREE.Mesh(tick, tickM); t.position.y = 0.107; if (dz) t.rotation.y = Math.PI / 2; b.add(t);
   });
   // face buttons: body colour, pale letters
-  const cap = new THREE.CylinderGeometry(0.45, 0.48, 0.2, 36);
-  [['a', 0.95, 0, 'A'], ['b', 0, 0.95, 'B'], ['x', 0, -0.95, 'X'], ['y', -0.95, 0, 'Y']].forEach(([k, dx, dz, letter]) => {
-    const b = button(cap, M.key, 5.85 + dx, 0.15 + dz, k, 0.2);
+  const cap = new THREE.CylinderGeometry(0.41, 0.44, 0.2, 36);
+  [['a', 0.8, 0, 'A'], ['b', 0, 0.8, 'B'], ['x', 0, -0.8, 'X'], ['y', -0.8, 0, 'Y']].forEach(([k, dx, dz, letter]) => {
+    const b = button(cap, M.key, 6.25 + dx, 0.15 + dz, k, 0.2);
     const lc = mk(64, 64), lx = lc.getContext('2d');
     lx.fillStyle = '#e4f3fa'; lx.font = `500 38px ${FONT}`; lx.textAlign = 'center'; lx.textBaseline = 'middle'; lx.fillText(letter, 32, 35);
     const lg = new THREE.PlaneGeometry(0.6, 0.6); lg.rotateX(-Math.PI / 2);
@@ -1228,7 +1243,7 @@
       const path = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0.85), new THREE.Vector3(0, -0.1, 1.5), new THREE.Vector3(0.5, -0.9, 2.4), new THREE.Vector3(1.8, -2.4, 3.0), new THREE.Vector3(4.5, -5, 3.2), new THREE.Vector3(9, -9, 3.2), new THREE.Vector3(20, -18, 3.2), new THREE.Vector3(40, -34, 3.2)]); // long enough to always run off the page
       plug.add(new THREE.Mesh(new THREE.TubeGeometry(path, 96, 0.055, 10, false), blk)); }                                   // and its cable, trailing off the page
     slide(plug, 0.6, -0.5, 5.5); plug.userData.s.cur = plug.userData.s.tgt = 1; plug.visible = false; // starts unplugged, off to the front
-    let yt = null, npEl = null, lastVol = -1, discA = 0, discT = 0;
+    let yt = null, npEl = null, lastVol = -1, fadeT = 0, discA = 0, discT = 0;
     const dtDisc = () => { const n = performance.now(), d = Math.min(100, n - (discT || n)); discT = n; return d * 0.05; };
     const stopMusic = () => { plug.userData.s.tgt = 1; music.on = false; music.p = 0; if (yt && yt.destroy) yt.destroy(); yt = null; if (npEl) { npEl.remove(); npEl = null; } drawTop(); };
     const startMusic = () => {
@@ -1253,7 +1268,7 @@
       const onErr = () => { if (npEl) npEl.querySelector('.np-by').textContent = location.protocol === 'file:' ? 'Needs the site served over http to play' : 'Could not load this track'; };
       const make = () => {
         if (!npEl) return;
-        lastVol = -1;
+        lastVol = -1; fadeT = performance.now();
         yt = new YT.Player('np-player', { width: 200, height: 200, videoId: TRACKS[trackN].id,
           playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 0, disablekb: 1, fs: 0, iv_load_policy: 3 },
           events: { onReady: (e) => e.target.loadVideoById(cue()), onStateChange: onState, onError: onErr } });
@@ -1271,7 +1286,7 @@
     });
     tickers.push(() => { // the volume slider on the left side sets the music's volume ("+" is toward the back)
       if (!yt || !yt.setVolume) return;
-      const v = Math.round(100 * (1 - (vol.position.z - VZ[0]) / (VZ[1] - VZ[0])));
+      const f = Math.min(1, (performance.now() - fadeT) / 3000), v = Math.round(100 * (1 - (vol.position.z - VZ[0]) / (VZ[1] - VZ[0])) * f * f); // starts silent and fades up, so plugging in never blasts anyone
       if (v !== lastVol) { lastVol = v; yt.setVolume(Math.max(0, Math.min(100, v))); }
     });
     add(device, new THREE.RingGeometry(0.12, 0.2, 32), M.accent, 0, 0.36, FZ + 0.047);
@@ -1301,7 +1316,7 @@
     // volume: grab the knob (or anywhere on the groove) and slide it. "+" is toward the back, as printed.
     const VZ = [-2.15, -1.25];
     const ridge = (m, out) => { for (const rz of [-0.11, 0, 0.11]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.035), M.dark); r.position.set(out * 0.04, 0, rz); m.add(r); } return m; }; // three grip ridges across a slider knob
-    const vol = ridge(box(0.09, 0.2, 0.36, M.key, -SX + 0.03, 0.87, -1.7), -1);
+    const vol = ridge(box(0.09, 0.2, 0.36, M.key, -SX + 0.03, 0.87, -1.7), -1); vol.position.z = VZ[0] + 0.7 * (VZ[1] - VZ[0]); // starts at 30%
     const vPlane = new THREE.Plane(), vN = new THREE.Vector3(), vP = new THREE.Vector3(), vHit = new THREE.Vector3();
     const volDrag = (e) => {
       const r = canvas.getBoundingClientRect();
@@ -1448,7 +1463,7 @@
       const rimM = new THREE.MeshStandardMaterial({ color: 0xa9a6a0, roughness: 0.3, metalness: 0.9 }); rimM.color.convertSRGBToLinear(); add(device, rimG, rimM, 0, 0, BZ);
       const ng = new THREE.CircleGeometry(1, 48, 0, Math.PI).rotateX(HALF); const hole = add(device, ng, notchDark, 0, -0.004, BZ - 0.005); hole.scale.set(NX, 1, NZ); } // the empty slot, seen through the bite when the card is out. Seated, the card itself covers it.
     // game card: a real card that ejects, flies up to the camera and flips over to show its label
-    box(3.86, 0.34, 0.02, blk, 0, 0.142, BZ - 0.032);                 // the card slot: open right down to the plate's bottom edge, so the card's end and its underside (seen through the bite) are one piece
+    box(3.56, 0.33, 0.02, blk, 0, 0.118, BZ - 0.032);                 // the card slot: open right down to the plate's bottom edge, so the card's end and its underside (seen through the bite) are one piece
     const CW = 3.5, CH = 3.8, CT = 0.3; // a chunky card, as thick as the real one looks in its slot
     const cs = new THREE.Shape(); { const w = CW / 2, h = CH / 2, r = 0.16;
       cs.moveTo(-w + r, -h); cs.lineTo(w - r, -h); cs.quadraticCurveTo(w, -h, w, -h + r);
@@ -1501,16 +1516,16 @@
     const cardAct = () => {
       ct = ct ? 0 : 1;
       if (ct && st) st = 0;
-      if (ct) { toast('Game card ejected'); if (S.sec && S.sec.game) goHome(); }
+      if (ct) { toast('Game card ejected'); if (S.play) stopGame(); }
       else toast('Game card back in');
     };
-    [cardBody, bk].forEach((m) => prop(m, () => cardAct()));
+    [cardBody, bk].forEach((m) => prop(m, () => cardAct())); window.__gameCard = cardAct; // (for tests)
     lbl.userData.hover = (uv) => { lhT = uv && cu > 0.9 && (1 - uv.y) * 600 > 506 ? (uv.x < 0.5 ? 0 : 1) : -1; };
     prop(lbl, (uv) => { // the bottom strip of the label holds two links
       if (uv && cu > 0.9 && (1 - uv.y) * 600 > 506) { openUrl(uv.x < 0.5 ? 'https://petarisakovic.ca' : 'https://github.com/PetarIsakovic'); return; }
       cardAct();
     });
-    const cA = new THREE.Vector3(), cAq = new THREE.Quaternion(), cDir = new THREE.Vector3(), cT = new THREE.Vector3(), cTq = new THREE.Quaternion(), cSpin = new THREE.Quaternion(), cUp = new THREE.Vector3();
+    const cW = new THREE.Vector3(), cPull = new THREE.Vector3(), cSide = new THREE.Vector3(), cA = new THREE.Vector3(), cAq = new THREE.Quaternion(), cDir = new THREE.Vector3(), cT = new THREE.Vector3(), cTq = new THREE.Quaternion(), cSpin = new THREE.Quaternion(), cUp = new THREE.Vector3();
     const cFace = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), HALF);
     stow = () => { const any = !!(st || ct); st = 0; ct = 0; return any; };
     cartTick = (dt, t) => {
@@ -1523,14 +1538,16 @@
       // like the real thing: press it in until it clicks, it springs part-way out, then it is pulled the rest of the way
       const ss = THREE.MathUtils.smoothstep, press = ss(out, 0, 0.12) - ss(out, 0.12, 0.22);
       const pop = ss(out, 0.14, 0.34), bounce = Math.sin(Math.min(1, Math.max(0, (out - 0.22) / 0.3)) * Math.PI * 2) * 0.05 * (1 - ss(out, 0.3, 0.52));
-      const travel = -0.07 * press + pop * 0.95 + bounce + ss(out, 0.55, 1) * (CH + 0.3 - 0.95);
-      cDir.set(0, 0, -1).applyQuaternion(cAq); cA.addScaledVector(cDir, travel * sc);
+      const travel = ct ? -0.07 * press + pop * 0.95 + bounce + ss(out, 0.55, 1) * (CH + 0.3 - 0.95) : ss(out, 0, 1) * (CH + 0.3); // going back in it just slides home
+      cDir.set(0, 0, -1).applyQuaternion(cAq); cA.addScaledVector(cDir, travel * sc); cPull.copy(cDir);
       cDir.set(0, 0, -1).applyQuaternion(camera.quaternion);
       cT.copy(camera.position).addScaledVector(cDir, Math.max(11, dist * 0.4));                       // then it flies up in front of the camera
       cUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
-      cSpin.setFromAxisAngle(cUp, fly * Math.PI * 2 + Math.sin(t * 1.1) * 0.16 * fly);                // one full flip on the way, then a slow sway
+      cSpin.setFromAxisAngle(cUp, (ct ? fly * Math.PI * 2 : 0) + Math.sin(t * 1.1) * 0.16 * fly); // the flip is for coming out only: on the way back it showed the card's dark back for a moment                // one full flip on the way, then a slow sway
       cTq.copy(camera.quaternion).multiply(cFace);
-      card.position.lerpVectors(cA, cT, fly);
+      // its path curves out past the console's right side rather than cutting straight through the body
+      cSide.set(1, 0, 0).applyQuaternion(rig.quaternion); rig.getWorldPosition(cW); cW.addScaledVector(cSide, 11 * sc).addScaledVector(cPull, 2.5 * sc); cW.y += 2 * sc;
+      const f1 = 1 - fly; card.position.copy(cA).multiplyScalar(f1 * f1).addScaledVector(cW, 2 * fly * f1).addScaledVector(cT, fly * fly);
       card.quaternion.copy(cAq).slerp(cTq, fly).premultiply(cSpin);
       card.scale.setScalar(sc + (1 - sc) * fly);
     };
@@ -1591,11 +1608,11 @@
         q.strokeStyle = 'rgba(190,200,210,.55)'; q.lineWidth = 2;
         q.beginPath(); q.arc(X(-5.85), Z(-0.6), 1.05 * SC, 0, 7); q.stroke(); q.beginPath(); q.arc(X(-5.85), Z(-0.6), 0.75 * SC, 0, 7); q.stroke();               // circle pad well
         { const c = 0.4 * SC, L = 1.15 * SC, x0 = X(-5.85), z0 = Z(2.0); q.beginPath(); [[-c, -L], [c, -L], [c, -c], [L, -c], [L, c], [c, c], [c, L], [-c, L], [-c, c], [-L, c], [-L, -c], [-c, -c]].forEach(([a, b], n) => (n ? q.lineTo(x0 + a, z0 + b) : q.moveTo(x0 + a, z0 + b))); q.closePath(); q.stroke(); } // D-pad well
-        [[0.95, 0], [0, 0.95], [0, -0.95], [-0.95, 0]].forEach(([ax, az]) => { q.beginPath(); q.arc(X(5.85 + ax), Z(0.15 + az), 0.5 * SC, 0, 7); q.stroke(); q.beginPath(); q.arc(X(5.85 + ax), Z(0.15 + az), 0.2 * SC, 0, 7); q.stroke(); });
+        [[0.8, 0], [0, 0.8], [0, -0.8], [-0.8, 0]].forEach(([ax, az]) => { q.beginPath(); q.arc(X(6.25 + ax), Z(0.15 + az), 0.5 * SC, 0, 7); q.stroke(); q.beginPath(); q.arc(X(6.25 + ax), Z(0.15 + az), 0.2 * SC, 0, 7); q.stroke(); });
         [-2.4, 0, 2.4].forEach((bx3) => q.strokeRect(X(bx3 + 0.9), Z(2.95), 1.8 * SC, 0.5 * SC));
         [[-7.0, -2.9], [7.0, -2.9], [-7.0, 3.6], [7.0, 3.6], [-4.6, -2.9], [4.6, -2.9], [6.5, -3.0], [4.3, -3.0], [-4.3, -3.0], [-6.5, -3.0], [0, 3.6]].forEach(([bx3, bz3]) => { q.fillStyle = '#3a3f46'; q.beginPath(); q.arc(X(bx3), Z(bz3), 20, 0, 7); q.fill(); q.fillStyle = '#c9a44a'; q.beginPath(); q.arc(X(bx3), Z(bz3), 12, 0, 7); q.fill(); q.fillStyle = '#0c0e10'; q.beginPath(); q.arc(X(bx3), Z(bz3), 5, 0, 7); q.fill(); }); // bosses with brass inserts
         q.fillStyle = 'rgba(200,210,220,.8)'; q.font = '600 13px ui-monospace, Menlo, monospace';
-        q.fillText('PI-CTR-UPR   >PC+ABS<   CAV 2   2026-11', 960, 676); q.fillText('EMI COAT  Cu/Ni', 40, 676); q.fillText('CPAD', X(-5.85) - 18, Z(-0.6) + 4); q.fillText('DPAD', X(-5.85) - 18, Z(2.0) + 4); q.fillText('A B X Y', X(5.85) - 30, Z(0.15) + 4);
+        q.fillText('PI-CTR-UPR   >PC+ABS<   CAV 2   2026-11', 960, 676); q.fillText('EMI COAT  Cu/Ni', 40, 676); q.fillText('CPAD', X(-5.85) - 18, Z(-0.6) + 4); q.fillText('DPAD', X(-5.85) - 18, Z(2.0) + 4); q.fillText('A B X Y', X(6.25) - 30, Z(0.15) + 4);
         for (let n = 0; n < 2; n++) { const cx = 60 + n * 70, cy = 60; q.strokeStyle = 'rgba(200,210,220,.7)'; q.lineWidth = 1.5; q.beginPath(); q.arc(cx, cy, 24, 0, 7); q.stroke(); for (let k = 0; k < 12; k++) { const an = k * Math.PI / 6; q.beginPath(); q.moveTo(cx + Math.cos(an) * 18, cy + Math.sin(an) * 18); q.lineTo(cx + Math.cos(an) * 24, cy + Math.sin(an) * 24); q.stroke(); } q.beginPath(); q.moveTo(cx, cy); q.lineTo(cx + 12, cy - 10); q.stroke(); } // mould date clocks
         const tx2 = new THREE.CanvasTexture(cv2); tx2.encoding = THREE.sRGBEncoding; tx2.anisotropy = renderer.capabilities.getMaxAnisotropy();
         add(device, down(14.6, 7.0), new THREE.MeshBasicMaterial({ map: tx2 }), 0, -0.003, 0.35); }
@@ -1632,7 +1649,7 @@
         hole([[-3.9, -3.45], [3.9, -3.45], [3.9, 2.45], [-3.9, 2.45]]);                                                             // screen window
         circ(-5.85, -0.6, 1.02);                                                                                                    // circle pad
         { const c = 0.36, L = 1.08, x0 = -5.85, z0 = 2.0; hole([[x0 - c, z0 - L], [x0 + c, z0 - L], [x0 + c, z0 - c], [x0 + L, z0 - c], [x0 + L, z0 + c], [x0 + c, z0 + c], [x0 + c, z0 + L], [x0 - c, z0 + L], [x0 - c, z0 + c], [x0 - L, z0 + c], [x0 - L, z0 - c], [x0 - c, z0 - c]]); } // D-pad
-        [[0.95, 0], [0, 0.95], [0, -0.95], [-0.95, 0]].forEach(([ax, az]) => circ(5.85 + ax, 0.15 + az, 0.5));                      // A B X Y
+        [[0.8, 0], [0, 0.8], [0, -0.8], [-0.8, 0]].forEach(([ax, az]) => circ(6.25 + ax, 0.15 + az, 0.5));                      // A B X Y
         [-2.4, 0, 2.4].forEach((bx3) => hole([[bx3 - 0.85, 3.0], [bx3 + 0.85, 3.0], [bx3 + 0.85, 3.4], [bx3 - 0.85, 3.4]]));          // SELECT HOME START
         circ(5.25, 3.55, 0.3);                                                                                                      // power
         const fg = new THREE.ExtrudeGeometry(sh, { depth: 0.24, bevelEnabled: false, curveSegments: 20 }); fg.rotateX(HALF); fg.translate(0, 0.12, 0);
@@ -1641,7 +1658,7 @@
           const cv2 = mk(1480, 820), q = cv2.getContext('2d'), X = (wx) => (0.5 - side * wx / 14.8) * 1480, Z = (wz) => (wz / 8.2 + 0.5) * 820;
           q.strokeStyle = 'rgba(255,255,255,.16)'; q.lineWidth = 3;
           [[-7.2, -3.9, -4.2, -3.9], [-7.2, 3.9, 7.2, 3.9], [4.2, -3.9, 7.2, -3.9], [-7.2, -3.9, -7.2, 3.9], [7.2, -3.9, 7.2, 3.9], [-4.4, -3.6, -4.4, 2.7], [4.4, -3.6, 4.4, 2.7], [-4.4, 2.7, 4.4, 2.7]].forEach(([a, b, c2, d]) => { q.beginPath(); q.moveTo(X(a), Z(b)); q.lineTo(X(c2), Z(d)); q.stroke(); }); // ribs
-          q.lineWidth = 2; q.beginPath(); q.arc(X(-5.85), Z(-0.6), 118, 0, 7); q.stroke(); [[0.95, 0], [0, 0.95], [0, -0.95], [-0.95, 0]].forEach(([ax, az]) => { q.beginPath(); q.arc(X(5.85 + ax), Z(0.15 + az), 62, 0, 7); q.stroke(); });
+          q.lineWidth = 2; q.beginPath(); q.arc(X(-5.85), Z(-0.6), 118, 0, 7); q.stroke(); [[0.8, 0], [0, 0.8], [0, -0.8], [-0.8, 0]].forEach(([ax, az]) => { q.beginPath(); q.arc(X(6.25 + ax), Z(0.15 + az), 62, 0, 7); q.stroke(); });
           for (let n = 0; n < 14; n++) { q.fillStyle = 'rgba(255,255,255,.2)'; q.fillRect(X(-4.2 + n * 0.62) - 14, Z(-3.82), 28, 10); }                                 // snap-fit clips along the hinge edge
           q.fillStyle = 'rgba(215,220,226,.82)'; q.font = '600 14px ui-monospace, Menlo, monospace';
           q.fillText(side > 0 ? 'PI-CTR-MID  >ABS-GF20<  CAV 1' : 'PI-CTR-MID  TOP', X(side > 0 ? 7.0 : -7.0), Z(3.72)); q.fillText('CPAD', X(side > 0 ? -5.4 : -6.3), Z(0.72)); q.fillText('DPAD', X(side > 0 ? -5.4 : -6.3), Z(3.42)); q.fillText('ABXY', X(side > 0 ? 6.3 : 5.4), Z(1.9)); q.fillText('LCD WINDOW  7.8 x 5.9', X(side > 0 ? 3.7 : -3.7), Z(-3.6));
@@ -1708,7 +1725,7 @@
         q.fillStyle = '#3d4249'; mono(q, 700, 20); q.fillText('SLOT-1  CARD READER', 40, 62); mono(q, 500, 15); q.fillText('17P  DETECT SW  EJECT SPRING', 40, 90); q.fillText('LOADED: PORTFOLIO', 40, 112); q.fillStyle = '#d9b450'; for (let n = 0; n < 17; n++) q.fillRect(44 + n * 23, 140, 13, 34); face(inp, 4.7, 3.5, cv2, -0.145, 0, -2.3); faceUp(inp, 4.7, 3.5, cv2, 0.145, 0, -2.3); }
       put(inp, new THREE.CylinderGeometry(0.95, 0.95, 0.26, 32), chipM, -5.85, 0, -0.6); put(inp, new THREE.CylinderGeometry(0.3, 0.3, 0.2, 20), steel, -5.85, -0.2, -0.6); put(inp, new THREE.BoxGeometry(1.3, 0.05, 2.3), std(0x0f5a3c, 0.6, 0), -5.85, 0.12, -0.6); // circle pad module
       put(inp, new THREE.BoxGeometry(2.0, 0.14, 0.62), chipM, -5.85, 0, 2.0); put(inp, new THREE.BoxGeometry(0.62, 0.14, 2.0), chipM, -5.85, 0, 2.0);                                                                                                      // D-pad membrane
-      [[0.95, 0], [0, 0.95], [0, -0.95], [-0.95, 0]].forEach(([ax, az]) => put(inp, new THREE.CylinderGeometry(0.42, 0.46, 0.12, 24), rubber, 5.85 + ax, 0, 0.15 + az));                                                                                    // A B X Y domes
+      [[0.8, 0], [0, 0.8], [0, -0.8], [-0.8, 0]].forEach(([ax, az]) => put(inp, new THREE.CylinderGeometry(0.42, 0.46, 0.12, 24), rubber, 6.25 + ax, 0, 0.15 + az));                                                                                    // A B X Y domes
       put(inp, new THREE.BoxGeometry(6.9, 0.07, 0.56), rubber, 0, 0, 3.2);                                                                                                                                                                                 // SELECT HOME START strip
       // 8. battery
       const batt = part(3.3, 0.3, 1.0);
@@ -1825,6 +1842,18 @@
   const topGeo = new THREE.PlaneGeometry(10.9, 6.54); topGeo.rotateX(Math.PI / 2);
   const topMat = new THREE.MeshBasicMaterial({ map: topTex });
   const topScreen = add(lid, topGeo, topMat, 0, -0.032, LZ - 0.05);
+  const SLICES = [1, 1]; // (single layers: stacked slices made the letters shimmer)
+  const STK = 28, tiles = [], picTex = new Map(), unitG = new THREE.PlaneGeometry(1, 1).rotateX(Math.PI / 2);
+  const texOf = (im) => { let x = picTex.get(im); if (!x) { x = new THREE.Texture(im); x.encoding = THREE.sRGBEncoding; x.anisotropy = 8; x.needsUpdate = true; picTex.set(im, x); } return x; };
+  const tileBody = new THREE.MeshBasicMaterial({ color: 0xdcdfe4 }), blockG = new Map();
+  const blockOf = (w, h) => { const key = (w * 20 | 0) + 'x' + (h * 20 | 0); let g = blockG.get(key); if (!g) { const W2 = Math.max(0.05, (w * 20 | 0) / 20), H2 = Math.max(0.05, (h * 20 | 0) / 20), r = Math.min(W2, H2) * 0.16, sh = new THREE.Shape(), x = -W2 / 2, y = -H2 / 2;
+      sh.moveTo(x + r, y); sh.lineTo(x + W2 - r, y); sh.quadraticCurveTo(x + W2, y, x + W2, y + r); sh.lineTo(x + W2, y + H2 - r); sh.quadraticCurveTo(x + W2, y + H2, x + W2 - r, y + H2); sh.lineTo(x + r, y + H2); sh.quadraticCurveTo(x, y + H2, x, y + H2 - r); sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y);
+      g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false, curveSegments: 10 }); g.rotateX(Math.PI / 2); blockG.set(key, g); } return g; }; // depth 1, scaled to the tile's thickness
+  const tileAt = (n) => { if (tiles[n]) return tiles[n]; const outer = new THREE.Group(), inner = new THREE.Group(); outer.add(inner); lid.add(outer);
+    const body = new THREE.Mesh(blockOf(1, 1), tileBody.clone()); inner.add(body);
+    const face = new THREE.Mesh(unitG, new THREE.MeshBasicMaterial({ transparent: true })); inner.add(face);
+    return (tiles[n] = { outer, inner, body, face, im: null, key: '' }); };
+  const popSheets = popTex.map((tx, i) => Array.from({ length: SLICES[i] }, (_, k) => { const m = add(lid, topGeo, new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false, alphaTest: 0.04, side: THREE.DoubleSide }), 0, -0.032, LZ - 0.05); m.renderOrder = 5 + i * 40 + k; m.visible = false; m.userData.shade = 1; return m; }));
   const dot = new THREE.CircleGeometry(0.07, 14).rotateX(Math.PI / 2), dotM = new THREE.MeshBasicMaterial({ color: 0x2b2e36 });
   for (const sx of [-1, 1]) for (const [dx, dz] of [[0, 0], [0.26, 0], [-0.26, 0], [0, 0.26], [0, -0.26]]) add(lid, dot, dotM, sx * 6.5 + dx, -0.03, LZ - 0.05 + dz);
   { // the inner camera, centred above the top screen: a rim, the lens, its pupil and a small glint. Click it to take a 'photo'.
@@ -1852,7 +1881,6 @@
     v = Math.max(0, Math.min(1, v));
     knob.position.z = SL.z0 + v * SL.len;
     depth3d = v < 0.06 ? 0 : v;
-    document.body.classList.toggle('stereo', depth3d > 0);
     drawTop();
   }
   const slPlane = new THREE.Plane(), slN = new THREE.Vector3(), slP = new THREE.Vector3(), slHit = new THREE.Vector3();
@@ -1919,7 +1947,15 @@
   const forceP = new URLSearchParams(location.search).get('p'); // ?p=0..1 pins the lid, for testing
   const scrollP = () => forceP !== null ? +forceP : THREE.MathUtils.clamp(scrollY / scrollMax(), 0, 1);
   function scrollOpen() { scrollTo({ top: scrollMax(), behavior: reduced ? 'auto' : 'smooth' }); }
+  { const cue = document.querySelector('.scrollcue'); if (cue) cue.addEventListener('click', () => scrollOpen()); }
   function scrollClosed() { scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' }); }
+  // a mouse wheel or trackpad: one nudge opens it all the way (or shuts it), and the lid swings on its own from there
+  addEventListener('wheel', (e) => {
+    if (forceP !== null || e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+    e.preventDefault();
+    if (e.deltaY > 1 && scrollY < scrollMax() - 1) scrollTo(0, scrollMax());
+    else if (e.deltaY < -1 && scrollY > 0) scrollTo(0, 0);
+  }, { passive: false });
   const POS_CLOSED = new THREE.Vector3(0, -1.0, 0.2), POS_OPEN = new THREE.Vector3(0, -4.3, 2.1);
   const introEl = document.getElementById('intro');
   const base = { yaw: 0, pitch: 0 };          // resting pose
@@ -1965,7 +2001,7 @@
       const x = hit.uv.x * BW, y = (1 - hit.uv.y) * BH;
       return { screen: true, region: regions.find((g) => x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h) };
     }
-    if (hit.object === topScreen) return { body: true, top: true };
+    if (hit.object === topScreen) return { body: true, top: true, uv: hit.uv };
     if (hit.object.userData.key) return { button: hit.object };
     if (hit.object.userData.act) return { prop: hit.object, uv: hit.uv };
     return { body: true };
@@ -1993,7 +2029,7 @@
   addEventListener('touchend', () => { if (performance.now() - lastScrollT < 450 || !touchReady()) lastScrollT = performance.now(); }, { passive: true }); // a run of quick swipes counts as one scroll, even after the page has hit the end
   canvas.addEventListener('touchstart', (e) => {
     if (!touchReady()) { lastScrollT = performance.now(); return; }
-    if (S.sec && S.sec.game) { e.preventDefault(); return; }                                    // in Snake a swipe steers, so it must not scroll the page
+    if (S.play) { e.preventDefault(); return; }                                    // in Snake a swipe steers, so it must not scroll the page
     const p = pick(e.touches[0]);
     if (p) e.preventDefault();                               // open: a finger on the console turns it (or scrolls a long page on its top screen); only the background scrolls the page
   }, { passive: false });
@@ -2002,14 +2038,15 @@
   canvas.addEventListener('pointerdown', (e) => {
     const p = pick(e);
     if ((!p || p.body) && stow()) return; // a click anywhere off a card that is out puts it back
+    if (p && p.top && S.play && openness() > 0.9 && e.pointerType !== 'touch') { gamePtr('down', p.uv); return; } // click the top screen to play (Bricks, Match, Whack...)
     if (p && p.top && padMax > 0 && openness() > 0.9) { padDrag = { y: e.clientY, s: padScroll }; canvas.setPointerCapture(e.pointerId); return; } // phone: drag the top screen to scroll its page
     if (p && p.slider) { sliding = true; slideTo(e); canvas.setPointerCapture(e.pointerId); return; }
     if (p && p.button) { p.button.userData.press = 1; key(p.button.userData.key, p.button.userData.code); return; }
     if (p && p.prop && p.prop.userData.stick) { stick = true; stickTo(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); return; }
     if (p && p.prop && p.prop.userData.drag) { dragFn = p.prop.userData.drag; dragFn(e); canvas.setPointerCapture(e.pointerId); canvas.classList.add('grabbing'); return; }
     if (p && p.prop) { p.prop.userData.act(p.uv); return; }
-    if (e.pointerType === 'touch' && S.sec && S.sec.game && touchReady()) { // a finger down during Snake starts a swipe, wherever it lands
-      swipe = { x: e.clientX, y: e.clientY, moved: false, region: p && p.region, top: !!(p && p.top) };
+    if (e.pointerType === 'touch' && S.play && touchReady()) { // a finger down during Snake starts a swipe, wherever it lands
+      swipe = { x: e.clientX, y: e.clientY, moved: false, region: p && p.region, top: !!(p && p.top), uv: p && p.uv };
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ } return;
     }
     if (!p) return; // only a press that lands on the console can grab and turn it
@@ -2047,12 +2084,16 @@
     { const hv = p && p.prop && p.prop.userData.hover ? p.prop : null; if (lastHover && lastHover !== hv) lastHover.userData.hover(null); if (hv) hv.userData.hover(p.uv); lastHover = hv; }
     if (!p) { hover.x = 0; hover.y = 0; } // off the console: no tilt either
     if (p && p.region && p.region.home !== undefined && !S.sec && S.home !== p.region.home && !isBooting()) { S.home = p.region.home; redraw(); }
+    setHot(p && p.region && openness() > 0.9 ? p.region.x + ',' + p.region.y : '');
+    if (p && p.top && S.play) gamePtr('move', p.uv);
     canvas.classList.toggle('point', !!(p && (p.button || p.region || p.slider || p.prop)));
   });
+  function setHot(h) { if (S.hot !== h && S.booted && !isBooting()) { S.hot = h; drawBottom(); } } // every button on the touch screen lights up under the pointer, not just the home icons
+  canvas.addEventListener('pointerleave', () => setHot(''));
   const endDrag = (e) => {
     if (swipe) { // no travel means it was a tap: press whatever is under it, or restart after a game over
       const w = swipe; swipe = null; try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
-      if (!w.moved) { if (w.region) w.region.fn(); else if (S.sec && S.sec.game && snake.over()) key('a'); }
+      if (!w.moved) { if (w.region) w.region.fn(); else if (w.top) gamePtr('down', w.uv); else key('a'); }
       return;
     }
     if (padDrag) { padDrag = null; try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ } return; }
@@ -2065,7 +2106,7 @@
       if (Math.hypot(vx, vy) > 0.25) { goal.yaw += lim(vx * 160 * drag.sp); goal.pitch += lim(vy * 160 * drag.sp * 0.6); }
     }
     if (!drag.moved) {
-      if (openness() < 0.9) { /* closed: a click does not open it; scrolling does */ }
+      if (openness() < 0.1) scrollOpen(); // closed: a click on it opens it
       else if (drag.region) drag.region.fn();
     }
     drag = null; canvas.classList.remove('grabbing');
@@ -2095,10 +2136,10 @@
   if (document.fonts && document.fonts.load) {
     Promise.all([400, 500, 600, 700, 800].map((w) => document.fonts.load(`${w} 20px "Inter"`))).then(redraw, () => {});
   }
-  setInterval(() => { if (S.booted && !(S.sec && S.sec.game)) drawTop(); }, 30000);
+  setInterval(() => { if (S.booted && !S.play) drawTop(); }, 30000);
 
   let last = t0, topDrawn = 0, ent = reduced ? 1 : 0, entT = -1;
-  if (!reduced) canvas.style.opacity = 0;
+  if (!reduced) canvas.style.opacity = 0; else loaded();
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; // rAF time can precede t0
@@ -2106,22 +2147,41 @@
     const k = 1 - Math.exp(-dt * 5);
 
     lidTarget = OPEN * THREE.MathUtils.smoothstep(scrollP(), 0.04, 0.9); // the scrollbar is the hinge
+    if (!reduced && scrollP() < 0.001 && !drag && ent >= 1) { const w = (t - 3.2) % 4.5; if (t > 3.2 && w < 1.1) lidTarget += Math.sin(w / 1.1 * Math.PI) * 0.16; } // closed and untouched: the lid lifts a crack every few seconds
     lidAngle = reduced ? lidTarget : lidAngle + (lidTarget - lidAngle) * (1 - Math.exp(-dt * 8));
     const o = openness();
     if (S.booted && o < 0.25) { // shut: power down, so the next open starts from scratch with the boot sequence
-      if (S.sec && S.sec.game) snake.stop();
+      S.play = null;
       S.booted = false; S.sec = null; S.home = 0; S.i = 0; redraw();
       goal.yaw = Math.round(goal.yaw / (Math.PI * 2)) * Math.PI * 2; goal.pitch = Math.round(goal.pitch / (Math.PI * 2)) * Math.PI * 2; // and it faces front again, however it had been turned
     }
     if (!S.booted && o > 0.7) { S.booted = true; S.bootAt = reduced ? -1e9 : performance.now() / 1000; redraw(); if (!reduced) { S.changed = S.bootAt + BOOT; setTimeout(() => { drawTop(); drawBottom(); }, BOOT * 1000 + 40); } }
     document.body.classList.toggle('open', o > 0.9);
-    document.body.classList.toggle('moved', o > 0.03);
+    document.body.classList.toggle('moved', scrollP() > 0.01 || o > 0.3);
     if (introEl) introEl.style.opacity = Math.max(0, 1 - o * 2.5);
     lid.rotation.x = -lidAngle;
     zoom();
     const lit = THREE.MathUtils.smoothstep(lidAngle, 0.5, 1.5);
     topMat.color.setScalar(lit); botMat.color.setScalar(lit);
-    if (!reduced && S.booted && lit > 0.05 && !(S.sec && S.sec.game)) { // the top screen is alive
+    { const up = popped ? THREE.MathUtils.smoothstep(lidAngle, 1.3, 1.85) : 0; // the floating sheets only stand off the glass once the lid is well open
+      // looking through a window: as the pointer moves across the page (standing in for your head), the near sheets slide against the
+      // background the other way, further the nearer they float. The console itself stays still.
+      const kk = 1 - Math.exp(-dt * 7); look.x += (look.tx - look.x) * kk; look.y += (look.ty - look.y) * kk;
+      rise.forEach((r) => { const goal = popped || depth3d > 0 ? depth3d : 0; r.s += ((goal - r.v) * r.k - r.s * 2 * Math.sqrt(r.k) * 0.62) * dt; r.v += r.s * dt; if (reduced) { r.v = goal; r.s = 0; } if (Math.abs(r.v) < 0.002 && !goal) { r.v = 0; r.s = 0; } });
+      popSheets.forEach((stack, i) => { const rv = Math.max(0, rise[i].v) * up, top = (i ? 2.2 : 1.1) * rv;
+        stack.forEach((m) => { const d = top; m.visible = popped; m.position.y = -0.032 - Math.max(0.004, d); const f = 1 - d / Math.max(10, dist); m.scale.set(f, 1, f); m.material.color.setScalar(lit * m.userData.shade); }); });
+      // the stickers: solid tiles standing off the glass, each leaning and turning a little so their sides catch the eye even head-on
+      const rv = Math.max(0, rise[1].v) * up, tt = now / 1000;
+      grabbed.forEach((g, n) => { const T = tileAt(n), top = 2.6 * rv, thick = 0.55 * rv, f = 1 - top / Math.max(10, dist), w = g.w / TW * 10.9 * f, hh = g.h / TH * 6.54 * f;
+        if (T.im !== g.im) { T.im = g.im; T.face.material.map = texOf(g.im); T.face.material.needsUpdate = true; }
+        const key = (w * 20 | 0) + 'x' + (hh * 20 | 0); if (T.key !== key) { T.key = key; T.body.geometry = blockOf(w, hh); }
+        T.outer.visible = popped; T.outer.position.set((g.X / TW - 0.5) * 10.9 * f, -0.032 - Math.max(0.004, top - thick), LZ - 0.05 + (0.5 - g.Y / TH) * 6.54 * f);
+        T.outer.rotation.set(((n % 3) - 1) * 0.07 * rv, 0, ((n % 2) ? 0.08 : -0.08) * rv); T.inner.rotation.y = -g.rot; // a slight fixed lean, so the sides show; no constant wobble
+        T.body.scale.set(1, Math.max(0.001, thick), 1); T.body.material.color.setHex(0xdcdfe4).multiplyScalar(lit); T.body.material.opacity = g.a; T.body.material.transparent = g.a < 0.99;
+        T.face.scale.set(w * 1.02, 1, hh * 1.02); T.face.position.y = -thick - 0.006; T.face.material.opacity = g.a; T.face.material.color.setScalar(lit); });
+      for (let n = grabbed.length; n < tiles.length; n++) tiles[n].outer.visible = false; }
+    if (S.play && S.booted) { S.play.inst.step(dt); drawTop(); const hh = S.play.inst.hud().join('|'); if (hh !== S.play.hud) drawBottom(); }
+    else if (!reduced && S.booted && lit > 0.05) { // the top screen is alive
       // Redrawing it and re-uploading it to the graphics card every frame is the most expensive thing on the page. A phone only
       // does that while something on it is actually changing; otherwise it refreshes once a second, which keeps scrolling and turning smooth.
       const nowS = now / 1000, live = !phone.matches || performance.now() / 1000 - S.changed < 1.0 || isBooting() || music.on || padDrag || (S.toast && performance.now() / 1000 < S.toast.until) || performance.now() / 1000 - secret.at < SECRET_FOR + 0.2;
@@ -2135,7 +2195,7 @@
     orbit.pitch += (goal.pitch + py - orbit.pitch) * (reduced ? 1 : kf);
     // closed: tipped toward the camera so the stickers read; open: upright
     // arrival: on load it rises up from below the page, turning a full circle (so the stickers on the lid flash past), overshoots a touch, and settles
-    if (ent < 1) { if (entT < 0) entT = now; ent = Math.min(1, (now - entT) / 1700); canvas.style.opacity = Math.min(1, ent * 4); if (ent >= 1) canvas.style.opacity = ''; }
+    if (ent < 1) { if (entT < 0) { entT = now; loaded(); } ent = Math.min(1, (now - entT) / 1700); canvas.style.opacity = Math.min(1, ent * 4); if (ent >= 1) canvas.style.opacity = ''; }
     const eo = 1 - Math.pow(1 - ent, 3), eq = ent - 1, eb = 1 + 2.2 * eq * eq * eq + 1.2 * eq * eq; // ease-out, and ease-out with a small overshoot
     rig.rotation.set(orbit.pitch + (1 - o) * 0.3 + 0.7 * (1 - eo) * (1 - eo), orbit.yaw - (1 - o) * 0.38 - Math.PI * 2 * (1 - eo), -0.35 * (1 - eo) * (1 - eo));
     device.position.lerpVectors(POS_CLOSED, POS_OPEN, o);
@@ -2157,5 +2217,5 @@
   requestAnimationFrame(frame);
 
   // small hook so the page can be driven from the console / tests
-  window.__handheld = { key, enter, goHome, goal, burst, scrollOpen, setDepth, props, card: () => props.find((m) => m.geometry && m.geometry.type === 'ExtrudeGeometry' && m.userData.act && m.parent && m.parent.parent === scene).userData.act() };
+  window.__handheld = { hot: () => S.hot, key, enter, goHome, goal, burst, scrollOpen, setDepth, props, card: () => props.find((m) => m.geometry && m.geometry.type === 'ExtrudeGeometry' && m.userData.act && m.parent && m.parent.parent === scene).userData.act() };
 })();

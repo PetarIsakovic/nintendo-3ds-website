@@ -253,3 +253,37 @@ html.dev .os.on .os-boot p { animation: osBlink .5s steps(1) 1.6s 3, osIn .01s l
 html.app, html.app body { position: fixed; inset: 0; width: 100%; overflow: hidden; touch-action: none; }
 .os-view { overflow-x: hidden; touch-action: pan-y; } .os-stage { touch-action: pan-y; }
 .os-body { max-width: 100%; overflow-x: hidden; overflow-wrap: break-word; } .os-body img { max-width: 100%; }
+
+/* shown while the scripts and pictures download, so a slow connection does not look like a broken page */
+.loading { position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; pointer-events: none; opacity: 0; animation: fade .4s ease .25s forwards; transition: opacity .35s; }
+.loading.done { opacity: 0 !important; animation: none; }
+.loading svg { width: 54px; height: 54px; animation: ldBob 1.1s ease-in-out infinite; }
+.loading .lid, .loading .base { fill: #1aa3b3; } .loading .hng { fill: #0c5a69; } .loading .scr { fill: #e9f6f8; animation: ldScr 1.1s ease-in-out infinite; }
+.loading span { font: 500 13px Inter, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #8a8f98; }
+@keyframes ldBob { 50% { transform: translateY(-5px); } }
+@keyframes ldScr { 50% { fill: #9fe3ea; } }
+html.app .loading { background: #eef0f3; }
+@media (prefers-reduced-motion: reduce) { .loading svg, .loading .scr { animation: none; } }
+
+/* the page only scrolls to swing the lid, so no scrollbar flashing up while it opens and closes */
+html { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* game icons are drawn on small canvases */
+.os-ico .os-gico { width: 62%; height: auto; aspect-ratio: 1; max-height: 100%; min-height: 0; object-fit: contain; }
+.os-th .os-gico { position: absolute; inset: 0; width: 100%; height: 100%; }
+.os-gwrap .os-game { max-width: none; max-height: none; }
+
+/* the start page's hint: a clear pill under the console, with a scrolling mouse, that also opens it when clicked */
+.scrollcue { bottom: max(34px, env(safe-area-inset-bottom)); flex-direction: row; gap: 12px; padding: 12px 22px 12px 16px; border: 1px solid rgba(42,45,51,.12); border-radius: 999px; background: rgba(255,255,255,.82); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(30,40,55,.12); color: #2a2d33; font: 600 15px Inter, system-ui, sans-serif; letter-spacing: 0; pointer-events: auto; cursor: pointer; }
+.scrollcue:hover { background: #fff; box-shadow: 0 8px 28px rgba(30,40,55,.18); }
+.scrollcue:focus-visible { outline: 2px solid #1aa3b3; outline-offset: 3px; }
+.scrollcue i { display: none; }
+.cue-mouse { position: relative; width: 20px; height: 30px; border: 2px solid #1aa3b3; border-radius: 11px; flex: none; }
+.cue-mouse b { position: absolute; left: 50%; top: 6px; width: 3px; height: 7px; margin-left: -1.5px; border-radius: 2px; background: #1aa3b3; animation: cueWheel 1.5s ease-in-out infinite; }
+@keyframes cueWheel { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(9px); opacity: 0; } 100% { transform: translateY(0); opacity: 0; } }
+.scrollcue { animation: fade .9s ease .9s forwards, cueNudge 2.6s ease-in-out 2.4s infinite; }
+@keyframes cueNudge { 0%, 70%, 100% { translate: 0 0; } 80% { translate: 0 -6px; } 90% { translate: 0 0; } }
+body.moved .scrollcue { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .cue-mouse b, .scrollcue { animation: fade .01s forwards; } }
+@media (pointer: coarse) { .cue-mouse { border-radius: 6px; width: 16px; } }
