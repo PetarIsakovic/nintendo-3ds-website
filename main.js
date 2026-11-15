@@ -2097,7 +2097,8 @@
   }
   setInterval(() => { if (S.booted && !(S.sec && S.sec.game)) drawTop(); }, 30000);
 
-  let last = t0, topDrawn = 0;
+  let last = t0, topDrawn = 0, ent = reduced ? 1 : 0, entT = -1;
+  if (!reduced) canvas.style.opacity = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now; // rAF time can precede t0
@@ -2133,11 +2134,14 @@
     orbit.yaw += (goal.yaw + px - orbit.yaw) * (reduced ? 1 : kf);
     orbit.pitch += (goal.pitch + py - orbit.pitch) * (reduced ? 1 : kf);
     // closed: tipped toward the camera so the stickers read; open: upright
-    rig.rotation.set(orbit.pitch + (1 - o) * 0.3, orbit.yaw - (1 - o) * 0.38, 0);
+    // arrival: on load it rises up from below the page, turning a full circle (so the stickers on the lid flash past), overshoots a touch, and settles
+    if (ent < 1) { if (entT < 0) entT = now; ent = Math.min(1, (now - entT) / 1700); canvas.style.opacity = Math.min(1, ent * 4); if (ent >= 1) canvas.style.opacity = ''; }
+    const eo = 1 - Math.pow(1 - ent, 3), eq = ent - 1, eb = 1 + 2.2 * eq * eq * eq + 1.2 * eq * eq; // ease-out, and ease-out with a small overshoot
+    rig.rotation.set(orbit.pitch + (1 - o) * 0.3 + 0.7 * (1 - eo) * (1 - eo), orbit.yaw - (1 - o) * 0.38 - Math.PI * 2 * (1 - eo), -0.35 * (1 - eo) * (1 - eo));
     device.position.lerpVectors(POS_CLOSED, POS_OPEN, o);
     device.position.y += 6.6 * xView.u;                                       // exploded: the parts drop below, so the shell rides up to keep the stack in view
-    rig.position.y = reduced ? 0 : Math.sin(t * 1.1) * 0.12;
-    const s = reduced ? 1 : 0.82 + 0.18 * THREE.MathUtils.smoothstep(t, 0, 1.6);
+    rig.position.y = reduced ? 0 : Math.sin(t * 1.1) * 0.12 - 9 * (1 - eo) * (1 - eo);
+    const s = 0.45 + 0.55 * eb;
     rig.scale.setScalar(s * (1 + (1 - o) * (phone.matches ? -0.2 : 0.06)) * (1 - 0.36 * xView.u));
     rig.position.x = phone.matches ? 0 : -2.6 * xView.u; // exploded: the stack sits left of its key // phones: the tilted, closed console is wider, so it sits a little smaller
 
