@@ -106,11 +106,16 @@
   }
   SECTIONS[2].items.find((it) => it.label === 'What The Fit').body.push('Built at the Phia hackathon. I was one of 30 selected to compete, out of 1,000.');
   SECTIONS[2].items.find((it) => it.label === 'Beat The Clock').more = ['crowd', 'venue']; // event photos: only on the phone layout, which scrolls
-  function padIcon(c, z) { // the Games icon: a little teal controller
+  function padIcon(c, z) { // the Games icon: a folder of four of the actual games, like a phone's app folder
     const R = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
-    c.fillStyle = '#1aa3b3'; R(z * 0.08, z * 0.28, z * 0.84, z * 0.46, z * 0.2); c.fill();
-    c.fillStyle = '#0c6f7c'; R(z * 0.18, z * 0.47, z * 0.22, z * 0.08, z * 0.02); c.fill(); R(z * 0.25, z * 0.4, z * 0.08, z * 0.22, z * 0.02); c.fill();
-    c.fillStyle = '#e0584d'; c.beginPath(); c.arc(z * 0.66, z * 0.46, z * 0.055, 0, 7); c.fill(); c.fillStyle = '#f2b632'; c.beginPath(); c.arc(z * 0.77, z * 0.56, z * 0.055, 0, 7); c.fill();
+    const G = (window.GAMES || []).slice(0, 4), m = z * 0.1, gap = z * 0.04, cell = (z - m * 2 - gap) / 2, stub = { pic: () => null };
+    c.fillStyle = '#e9edf1'; R(m * 0.4, m * 0.4, z - m * 0.8, z - m * 0.8, z * 0.2); c.fill();
+    G.forEach((g, i) => {
+      const x = m + (i % 2) * (cell + gap), y = m + Math.floor(i / 2) * (cell + gap);
+      c.save(); R(x, y, cell, cell, cell * 0.24); c.clip(); c.fillStyle = '#fff'; c.fillRect(x, y, cell, cell);
+      c.translate(x - cell * 0.06, y - cell * 0.06); try { g.icon(c, cell * 1.12, stub); } catch (err) { /* a bare tile is fine */ } c.restore();
+      c.strokeStyle = 'rgba(42,45,51,.12)'; c.lineWidth = Math.max(1, z * 0.008); R(x, y, cell, cell, cell * 0.24); c.stroke();
+    });
   }
   SECTIONS[2].items.find((it) => it.label === 'Oyster').rowExtra = 'soon'; // the team, at the end of the screenshot row
   SECTIONS[0].items.find((it) => it.label === 'Stack').scatter = [ // logo stickers slapped on at odd angles: [key, x, y, size, tilt]
@@ -206,7 +211,7 @@
     const gpics = {}; Object.keys(ST).forEach((k) => { const im = new Image(); im.src = ST[k]; gpics[k] = im; });
     const iconCv = (draw, px) => { const c = document.createElement('canvas'), d = Math.min(2, devicePixelRatio || 1); c.width = c.height = px * d; c.className = 'os-gico'; const x = c.getContext('2d'); x.scale(d, d); const go = () => { x.clearRect(0, 0, px, px); draw(x, px); }; go(); setTimeout(go, 400); setTimeout(go, 1500); return c; }; // (redrawn once the sticker pictures have decoded)
     const snakeIcon = () => iconCv(padIcon, 96);
-    const home = h('section', 'os-view os-home', [h('div', 'os-grid', SECTIONS.map((sec, n) => btn('os-tile', [h('span', 'os-ico', [ICON[n] ? pic(ICON[n]) : snakeIcon()]), t('b', '', sec.label), t('small', '', sec.blurb)], () => push(section(sec))))),
+    const home = h('section', 'os-view os-home', [h('div', 'os-grid', SECTIONS.map((sec, n) => btn('os-tile', [h('span', 'os-ico', [ICON[n] ? pic(ICON[n]) : snakeIcon()]), t('b', '', sec.label)], () => push(section(sec))))),
       h('footer', 'os-foot', [t('p', '', 'Software Engineering, University of Waterloo'), h('nav', '', SECTIONS[5].items.map((it) => { const a = t('a', '', it.label); a.href = it.links[0][1]; a.target = '_blank'; a.rel = 'noopener'; return a; }))])]);
     push(home);
 
@@ -247,16 +252,20 @@
       const v = view(g.name, '', [h('div', 'os-score', [L, R]), wrap]); v.classList.add('os-snakev', 'os-nosel');
       const inst = g.make(genv); let W = 0, H = 0, raf = 0, last = 0, hud = '';
       const size = () => { const w = Math.floor(wrap.clientWidth), hh = Math.floor(wrap.clientHeight); if (!w || !hh || (w === W && hh === H)) return; const d = Math.min(2, devicePixelRatio || 1); W = w; H = hh; cv.width = W * d; cv.height = H * d; cv.style.width = W + 'px'; cv.style.height = H + 'px'; c.setTransform(d, 0, 0, d, 0, 0); inst.resize(W, H); };
-      const loop = (now) => { raf = requestAnimationFrame(loop); if (!W) { size(); if (!W) return; inst.reset(); last = now; } const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const loop = (now) => { raf = requestAnimationFrame(loop); if (!W) { size(); if (!W) return; inst.reset(); inst.key('a'); if (inst.release) inst.release('a'); last = now; } const dt = Math.min(0.05, (now - last) / 1000); last = now;
         inst.step(dt); inst.draw(c, now / 1000); const hh = inst.hud(); if (hh.join('|') !== hud) { hud = hh.join('|'); L.textContent = hh[0]; R.textContent = hh[1]; } };
       raf = requestAnimationFrame(loop); v.leave = () => cancelAnimationFrame(raf);
       const at = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
-      let sw = null;
-      v.addEventListener('pointerdown', (e) => { if (e.target.closest('.os-head')) return; sw = { x: e.clientX, y: e.clientY }; inst.pointer('down', ...at(e)); });
-      v.addEventListener('pointermove', (e) => { if (!sw) return; if (inst.swipe) { const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) { inst.key(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); sw.x = e.clientX; sw.y = e.clientY; } } else inst.pointer('move', ...at(e)); });
-      const end = (e) => { if (sw) inst.pointer('up', ...at(e)); sw = null; };
-      v.addEventListener('pointerup', end); v.addEventListener('pointercancel', () => { sw = null; });
-      v.ctl = (k) => inst.key(k);
+      let sw = null; const fingers = new Set(); let prim = null; // several fingers at once: the first one steers, an extra tap is just another 'down'
+      v.addEventListener('pointerdown', (e) => { if (e.target.closest('.os-head')) return; fingers.add(e.pointerId); if (prim === null) { prim = e.pointerId; sw = { x: e.clientX, y: e.clientY }; } inst.pointer('down', ...at(e)); });
+      v.addEventListener('pointermove', (e) => { if (!sw || e.pointerId !== prim) return; if (inst.swipe) { const dx = e.clientX - sw.x, dy = e.clientY - sw.y; if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) { inst.key(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up')); sw.x = e.clientX; sw.y = e.clientY; } } else inst.pointer('move', ...at(e)); });
+      const end = (e) => { // only the last finger off the screen counts as letting go
+        if (!fingers.delete(e.pointerId)) return;
+        if (fingers.size) { if (e.pointerId === prim) { prim = fingers.values().next().value; sw = { x: e.clientX, y: e.clientY }; } return; }
+        if (sw) inst.pointer('up', ...at(e)); sw = null; prim = null;
+      };
+      v.addEventListener('pointerup', end); v.addEventListener('pointercancel', (e) => { fingers.delete(e.pointerId); if (fingers.size) return; sw = null; prim = null; if (inst.release) inst.release('ptr'); });
+      v.ctl = (k) => inst.key(k); v.release = (k) => { if (inst.release) inst.release(k); };
       return v;
     }
 
@@ -346,18 +355,22 @@
     // a long press must not start the browser's own gestures (text selection, the callout menu), which stall the page while the finger is down
     canvas.addEventListener('touchstart', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
     addEventListener('contextmenu', (e) => e.preventDefault()); addEventListener('selectstart', (e) => e.preventDefault());
-    let held = 0; const release = () => { clearTimeout(held); clearInterval(held); held = 0; };
+    // each finger on a button is tracked on its own, so you can hold a direction and tap A at the same time
+    const holds = new Map();
+    const letGo = (id) => { const hd = holds.get(id); if (!hd) return; holds.delete(id); clearTimeout(hd.t); clearInterval(hd.t); const v = cur(); if (v && v.release) v.release(hd.k); };
+    const release = (e) => { if (e && e.pointerId !== undefined) letGo(e.pointerId); else [...holds.keys()].forEach(letGo); };
     canvas.addEventListener('pointerdown', (e) => {
       if (!landed) return;
       const front = Math.abs(rot) < 0.2, hit = front ? pickAt(e) : null;
-      if (hit) { const ud = hit.object.userData, o = hit.object; if (!ud.proxy) o.userData.p = 1; press(ud); release();
-        if (ud.dir) held = setTimeout(() => { held = setInterval(() => { ud.proxy.userData.p = 1; ctl(ud.k); }, 140); }, 380); // holding a direction repeats it
+      if (hit) { const ud = hit.object.userData, o = hit.object; if (!ud.proxy) o.userData.p = 1; letGo(e.pointerId); press(ud);
+        const hd = { k: ud.k, t: 0 }; holds.set(e.pointerId, hd);
+        if (ud.dir) hd.t = setTimeout(() => { hd.t = setInterval(() => { ud.proxy.userData.p = 1; ctl(ud.k); }, 140); }, 380); // holding a direction repeats it
         return; }
       drag = { x: e.clientX, r: rot, moved: false, dx: 0 }; try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
     });
     canvas.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x; drag.dx = dx; if (Math.abs(dx) > 6) drag.moved = true; if (drag.moved) rot = rotT = drag.r + dx * (Math.PI / (innerWidth * 0.55)); });
-    const up = () => { release(); if (!drag) return; const d = drag; drag = null; if (!d.moved) { if (Math.abs(rot) > 0.5) rotT = 0; return; } const turns = Math.round(d.r / Math.PI) + (Math.abs(d.dx) > 34 ? Math.sign(d.dx) : 0); rotT = turns * Math.PI; if (Math.abs(turns) % 2 === 0) { rot -= rotT; rotT = 0; } };
-    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); addEventListener('pointerup', release); addEventListener('blur', release);
+    const up = (e) => { release(e); if (!drag) return; const d = drag; drag = null; if (!d.moved) { if (Math.abs(rot) > 0.5) rotT = 0; return; } const turns = Math.round(d.r / Math.PI) + (Math.abs(d.dx) > 34 ? Math.sign(d.dx) : 0); rotT = turns * Math.PI; if (Math.abs(turns) % 2 === 0) { rot -= rotT; rotT = 0; } };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); addEventListener('pointerup', release); addEventListener('pointercancel', release); addEventListener('blur', () => release());
     let lastT = performance.now(), flat = true;
     const CORN = [[-SX, sTop], [SX, sTop], [SX, sBot], [-SX, sBot]];
     (function loop(now) {
@@ -541,7 +554,7 @@
     { title: 'Work', sub: ['Three internships: StackAdapt, Zomp', 'and Heseri Games.'], pics: [['stackadapt', 498, 142, 116, -0.1], ['voodoo', 640, 118, 84, 0.1], ['waterloo', 734, 208, 90, -0.07], ['zomp', 566, 262, 94, 0.08], ['heseri', 668, 348, 186, -0.05], ['goose', 462, 338, 94, 0.1]] },
     { title: 'Projects', sub: ['Ten projects. Three of them took', 'first place at hackathons.'], pics: [['oyster', 528, 150, 178, -0.06], ['boxhead', 706, 152, 118, 0.08], ['proteful', 470, 312, 90, 0.1], ['knight', 578, 332, 82, -0.09], ['pac', 676, 300, 84, 0.08], ['mvc_icon', 744, 362, 68, -0.1]] },
     { title: 'Awards', sub: ['Four first-place hackathon finishes', 'and four scholarships.'], pics: [['soon', 594, 148, 280, -0.04], ['cheque', 506, 322, 188, 0.05], ['four', 682, 316, 148, -0.06]] },
-    { title: 'Games', sub: ['Six small games: Snake, Bricks,', 'Goose Glide, and three more.'], games: true },
+    { title: 'Games', sub: ['Twelve games: Goose Kart, Pinball,', 'Goose Quest, Honk Arena and more.'], games: true },
     { title: 'Contact', sub: ['LinkedIn, GitHub, X and Devpost.'], pics: [['linkedin', 492, 172, 110, -0.08], ['github', 632, 132, 102, 0.07], ['xlogo', 566, 312, 96, 0.06], ['devpost', 712, 272, 106, -0.06]] },
   ];
   function drawHomeTop(t, a) {
@@ -556,10 +569,14 @@
       tc.shadowColor = 'rgba(30,40,55,.2)'; tc.shadowBlur = 10; tc.shadowOffsetY = 4;
       drawPic(im, 0, 0, w, w, t + i * 1.7, on, false); tc.restore();
     });
-    if (art.games) (window.GAMES || []).forEach((g, i) => { // the six game icons, tilted, landing one after another
-      const on = Math.max(0, Math.min(1, a * 1.8 - i * 0.1)), x = 470 + (i % 3) * 114, y = 150 + Math.floor(i / 3) * 128, z = 92;
-      tc.save(); tc.translate(x, y + Math.sin(t * 1.1 + i) * 2); tc.rotate([-0.08, 0.06, -0.04, 0.07, -0.06, 0.05][i]); tc.scale(0.8 + 0.2 * on, 0.8 + 0.2 * on); tc.globalAlpha = on;
-      tc.shadowColor = 'rgba(30,40,55,.16)'; tc.shadowBlur = 12; tc.shadowOffsetY = 4; const ic = iconPic(g); blit(tc, ic, ic, -z / 2, -z / 2, z, z); tc.restore(); });
+    if (art.games) { // every game as a die-cut sticker, scattered and tilted, dropping in one after another
+      const SPOT = [[468, 112, 96, -0.14], [572, 96, 84, 0.1], [668, 118, 100, -0.06], [758, 100, 74, 0.16], [452, 222, 82, 0.12], [552, 210, 104, -0.08],
+        [660, 228, 86, 0.14], [752, 212, 80, -0.12], [478, 330, 88, -0.04], [580, 322, 80, 0.12], [676, 338, 96, -0.1], [762, 318, 72, 0.08]];
+      (window.GAMES || []).slice(0, SPOT.length).forEach((g, i) => {
+        const [x, y, z, r] = SPOT[i], on = Math.max(0, Math.min(1, a * 2.2 - i * 0.07)), drop = (1 - on) * (1 - on) * 40, sway = Math.sin(t * 0.9 + i * 1.7);
+        tc.save(); tc.translate(x, y - drop + sway * 2); tc.rotate(r + sway * 0.02 + (1 - on) * 0.3); tc.scale(1.15 - 0.15 * on, 1.15 - 0.15 * on); tc.globalAlpha = on;
+        tc.shadowColor = 'rgba(30,40,55,.22)'; tc.shadowBlur = 14; tc.shadowOffsetY = 6; const sp = stickerPic(g, i % 3 === 1); blit(tc, sp, sp, -z / 2, -z / 2, z, z); tc.restore(); });
+    }
     if (art.snake) { // a small game board, with a snake doing laps and eating the apple
       const CS = 22, NX = 13, NY = 12, BX = 756 - NX * CS, BY = 100;
       tc.save(); tc.globalAlpha = a;
@@ -671,6 +688,22 @@
     if (e.n < 6 && now - e.at > 700) { e.at = now; e.n++; const x = e.c.getContext('2d'); x.clearRect(0, 0, 240, 240); x.fillStyle = TILE; rr(x, 0, 0, 240, 240, 38); x.fill(); x.save(); x.translate(24, 24); g.icon(x, 192, genv); x.restore(); const tx = picTex.get(e.c); if (tx) tx.needsUpdate = true; } // (redrawn a few times while the sticker pictures finish loading)
     e.c.naturalWidth = 240; e.c.naturalHeight = 240; return e.c;
   }
+  const stickerPics = {};
+  function stickerPic(g, peel) {
+    const key = g.id + (peel ? 'p' : ''); let e = stickerPics[key]; const now = performance.now();
+    if (!e) e = stickerPics[key] = { c: mk(260, 260), at: -1e9, n: 0 };
+    if (e.n < 6 && now - e.at > 700) { e.at = now; e.n++; const x = e.c.getContext('2d'), Z = 260, R = 52; x.clearRect(0, 0, Z, Z);
+      x.save(); if (peel) { x.beginPath(); x.moveTo(0, 0); x.lineTo(Z, 0); x.lineTo(Z, Z - 58); x.lineTo(Z - 58, Z); x.lineTo(0, Z); x.closePath(); x.clip(); } // the peeled corner is cut away...
+      x.fillStyle = '#fff'; rr(x, 0, 0, Z, Z, R); x.fill(); x.strokeStyle = 'rgba(42,45,51,.08)'; x.lineWidth = 2; rr(x, 1, 1, Z - 2, Z - 2, R); x.stroke();
+      x.save(); rr(x, 16, 16, Z - 32, Z - 32, R - 14); x.clip(); x.fillStyle = TILE; x.fillRect(16, 16, Z - 32, Z - 32); x.translate(28, 28); g.icon(x, Z - 56, genv); x.restore();
+      x.save(); rr(x, 16, 16, Z - 32, Z - 32, R - 14); x.clip(); const gl = x.createLinearGradient(0, 0, Z, Z); gl.addColorStop(0.0, 'rgba(255,255,255,0)'); gl.addColorStop(0.42, 'rgba(255,255,255,0)'); gl.addColorStop(0.5, 'rgba(255,255,255,.32)'); gl.addColorStop(0.58, 'rgba(255,255,255,0)'); x.fillStyle = gl; x.fillRect(0, 0, Z, Z); x.restore(); // a glossy streak
+      x.restore();
+      if (peel) { const pg = x.createLinearGradient(Z - 58, Z - 58, Z - 29, Z - 29); pg.addColorStop(0, '#d9dde3'); pg.addColorStop(1, '#ffffff'); // ...and folded back over itself
+        x.fillStyle = 'rgba(0,0,0,.12)'; x.beginPath(); x.moveTo(Z, Z - 58); x.lineTo(Z - 58, Z); x.lineTo(Z - 64, Z - 64); x.closePath(); x.fill();
+        x.fillStyle = pg; x.beginPath(); x.moveTo(Z, Z - 58); x.lineTo(Z - 58, Z); x.lineTo(Z - 60, Z - 60); x.closePath(); x.fill(); }
+      const tx = picTex.get(e.c); if (tx) tx.needsUpdate = true; }
+    e.c.naturalWidth = 260; e.c.naturalHeight = 260; return e.c;
+  }
   function gameCard(g, t, a) { // the Games menu: what the highlighted game is and how to play it
     layer(-1); backdrop(tc, TW, TH); layer(0); status('Games');
     layer(1.4); const z = 230; tc.save(); tc.translate(600, 230 + Math.sin(t * 1.2) * 3); tc.rotate(-0.04); tc.globalAlpha = a;
@@ -678,9 +711,10 @@
     layer(0.6); const X = 44 + (1 - a) * 14; tc.globalAlpha = a;
     font(tc, 600, 12.5); tc.fillStyle = MUTE; spaced(tc, 'GAME', X, 96, 1.2);
     tc.fillStyle = INK; font(tc, 600, 44); tc.fillText(g.name, X - 2, 146);
-    tc.fillStyle = SOFT; font(tc, 400, 19); wrap(tc, g.blurb, 380).forEach((ln, i) => tc.fillText(ln, X, 186 + i * 27));
-    font(tc, 400, 16.5); tc.fillStyle = MUTE; g.how.forEach((ln, i) => { tc.beginPath(); tc.arc(X + 5, 256 + i * 30 - 6, 3, 0, 7); tc.fill(); tc.fillText(ln, X + 20, 256 + i * 30); });
-    const b = +store.get(g.id + '-best') || 0; if (b) { tc.fillStyle = ACC; font(tc, 600, 16); tc.fillText((g.id === 'match' ? 'Best: ' + b + ' moves' : 'Best: ' + b), X, 340); }
+    tc.fillStyle = SOFT; font(tc, 400, 19); const bl = wrap(tc, g.blurb, 400); bl.forEach((ln, i) => tc.fillText(ln, X, 186 + i * 27));
+    let y = 186 + (bl.length - 1) * 27 + 42; // everything stays left of the icon, which starts at x 485
+    font(tc, 400, 16.5); tc.fillStyle = MUTE; g.how.forEach((ln) => { tc.beginPath(); tc.arc(X + 5, y - 6, 3, 0, 7); tc.fill(); wrap(tc, ln, 395).forEach((l2, j) => tc.fillText(l2, X + 20, y + j * 22)); y += wrap(tc, ln, 395).length * 22 + 8; });
+    const b = +store.get(g.id + '-best') || 0; if (b) { tc.fillStyle = ACC; font(tc, 600, 16); tc.fillText((g.best ? g.best(b) : 'Best: ' + b), X, Math.min(398, y + 14)); }
     tc.globalAlpha = 1; layer(0); hint('Play ' + g.name);
   }
   function playTop(t) { // a game running on the top screen, under the status bar
@@ -895,12 +929,12 @@
     const n = sec.items.length, cols = n > 5 ? 2 : 1, rows = Math.ceil(n / cols);
     sec.cols = cols;
     const links = sec.items[S.i].links;
-    const top = 56, bottom = links ? 398 : 464, gap = 8;
+    const top = 56, bottom = links || sec.games ? 398 : 464, gap = 8;
     const h = Math.min(62, (bottom - top - gap * (rows - 1)) / rows);
     const w = (BW - 40 - gap * (cols - 1)) / cols;
     sec.items.forEach((it, i) => {
       const x = 20 + (i % cols) * (w + gap), y = top + Math.floor(i / cols) * (h + gap), on = i === S.i;
-      tile(x, y, w, h, on, null, () => { S.i = i; redraw(); });
+      tile(x, y, w, h, on, null, () => { if (it.game && S.i === i) { startGame(i); return; } S.i = i; redraw(); }); // a game: click once to pick it, again to play
       const th = pic(it.thumb || it.img); let tx = x + 18;
       if (it.game) { const z = Math.min(44, h - 10); bc.save(); bc.translate(x + 32 - z / 2, y + h / 2 - z / 2); it.game.icon(bc, z, genv); bc.restore(); tx = x + 62; }
       else if (th) { fitPic(bc, th, x + 32, y + h / 2, 40, Math.min(40, h - 14)); tx = x + 62; }
@@ -919,13 +953,21 @@
         bc.fillText('Open ' + label, x + lw / 2, 443); bc.textAlign = 'left';
       });
     }
+    if (sec.games && sec.items[S.i]) { // a big Play button for the picked game
+      const x = 20, bw = BW - 40, hv = S.hot === x + ',406';
+      rr(bc, x, 412, bw, 50, 12); bc.fillStyle = hv ? '#128a98' : ACC; bc.fill();
+      regions.push({ x, y: 406, w: bw, h: 62, fn: () => startGame(S.i) });
+      const label = 'Play ' + sec.items[S.i].label; font(bc, 600, onPhone() ? 23 : 17); const tw = bc.measureText(label).width, cx = BW / 2 - (tw + 22) / 2;
+      bc.fillStyle = '#fff'; bc.beginPath(); bc.moveTo(cx, 427); bc.lineTo(cx + 13, 437); bc.lineTo(cx, 447); bc.closePath(); bc.fill();
+      bc.fillText(label, cx + 22, 443.5);
+    }
     botTex.needsUpdate = true;
   }
   function redraw() { S.changed = performance.now() / 1000; drawTop(); drawBottom(); }
 
   /* ======================= games (games.js; they play on the top screen) ======================= */
   const genv = { pic: (k) => pic(k), load: (id) => +store.get(id + '-best') || 0, save: (id, n) => store.set(id + '-best', n), touch: matchMedia('(pointer: coarse)').matches, buzz: () => {} };
-  function startGame(i) { const g = S.sec.items[i].game, inst = g.make(genv); inst.resize(TW, TH - 44); inst.reset(); S.play = { g, inst, hud: '' }; redraw(); }
+  function startGame(i) { const g = S.sec.items[i].game, inst = g.make(genv); inst.resize(TW, TH - 44); inst.reset(); inst.key('a'); if (inst.release) inst.release('a'); S.play = { g, inst, hud: '' }; redraw(); } // straight into the game: the menu card already said how to play
   function stopGame() { S.play = null; redraw(); }
   function gamePad() { // bottom screen while playing: the score, arrows and an A button (the console's own buttons and the keyboard work too)
     const [l, r] = S.play.inst.hud(); S.play.hud = l + '|' + r;
@@ -933,10 +975,10 @@
     const cx = 450, cy = 262, z = 84;
     [['up', 0, -1, '▲'], ['down', 0, 1, '▼'], ['left', -1, 0, '◀'], ['right', 1, 0, '▶']].forEach(([k, dx, dy, gl]) => {
       const x = cx + dx * (z + 8) - z / 2, y = cy + dy * (z + 8) - z / 2;
-      tile(x, y, z, z, false, null, () => key(k));
+      tile(x, y, z, z, false, null, () => key(k)); regions[regions.length - 1].k = k;
       bc.fillStyle = INK; font(bc, 500, 24); bc.textAlign = 'center'; bc.fillText(gl, x + z / 2, y + z / 2 + 9); bc.textAlign = 'left';
     });
-    tile(60, 300, 120, 120, false, null, () => key('a')); bc.fillStyle = '#e0584d'; bc.beginPath(); bc.arc(120, 360, 34, 0, 7); bc.fill();
+    tile(60, 300, 120, 120, false, null, () => key('a')); regions[regions.length - 1].k = 'a'; bc.fillStyle = '#e0584d'; bc.beginPath(); bc.arc(120, 360, 34, 0, 7); bc.fill();
     bc.fillStyle = '#fff'; font(bc, 700, 26); bc.textAlign = 'center'; bc.fillText('A', 120, 369); bc.textAlign = 'left';
   }
   function gamePtr(type, uv) { if (S.play && uv) S.play.inst.pointer(type, uv.x * TW, (1 - uv.y) * TH - 44); }
@@ -1447,8 +1489,6 @@
       flatB(0.52, 0.07, 0.02, stripM, 3.87, HY + 0.02, 0.036); flatB(0.66, 0.04, 0.02, grey, 3.87, HY - 0.09, 0.036); }
     { const tc2 = mk(300, 64), tx3 = tc2.getContext('2d'); tx3.fillStyle = 'rgba(18,18,18,.82)'; tx3.font = `600 34px ${FONT}`; tx3.textAlign = 'center'; tx3.fillText('4.6V ⎓ IN', 150, 44);
       wall(tc2, 0.86, 0.184, 3.87, 0.12, BZ - 0.034, Math.PI); }
-    box(2.56, 0.022, 0.02, bevM, -4.17, -0.022, BZ - 0.03); box(0.46, 0.022, 0.02, bevM, -2.18, -0.022, BZ - 0.03); box(3.5, 0.022, 0.02, bevM, 3.7, -0.022, BZ - 0.03); // (broken where the stylus hole and the card slot pass through)
-                                                                              // the bright line where the plate folds under
     // finger notch scooped out of the underside below the card slot
     // the metal strip arches up onto the underside over the card slot, with one screw in it
     // under the card slot the plate is cut away in an arch, so you can see (and push) the card through it: a metal rim, the card showing inside
@@ -1849,10 +1889,63 @@
   const blockOf = (w, h) => { const key = (w * 20 | 0) + 'x' + (h * 20 | 0); let g = blockG.get(key); if (!g) { const W2 = Math.max(0.05, (w * 20 | 0) / 20), H2 = Math.max(0.05, (h * 20 | 0) / 20), r = Math.min(W2, H2) * 0.16, sh = new THREE.Shape(), x = -W2 / 2, y = -H2 / 2;
       sh.moveTo(x + r, y); sh.lineTo(x + W2 - r, y); sh.quadraticCurveTo(x + W2, y, x + W2, y + r); sh.lineTo(x + W2, y + H2 - r); sh.quadraticCurveTo(x + W2, y + H2, x + W2 - r, y + H2); sh.lineTo(x + r, y + H2); sh.quadraticCurveTo(x, y + H2, x, y + H2 - r); sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y);
       g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false, curveSegments: 10 }); g.rotateX(Math.PI / 2); blockG.set(key, g); } return g; }; // depth 1, scaled to the tile's thickness
+  // A sticker with a transparent background stands up as its own outline, not a box: its silhouette is traced, extruded,
+  // and the sides take the colour of the sticker's edge at each point. (Photos and screenshots stay rounded boxes.)
+  const outlineG = new Map();
+  function outlineOf(im) {
+    if (outlineG.has(im)) return outlineG.get(im);
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    let geo = null;
+    try {
+      const R = 128, iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height, k = R / Math.max(iw, ih), mw = Math.max(8, Math.round(iw * k)), mh = Math.max(8, Math.round(ih * k)), P = 4, W = mw + P * 2, H = mh + P * 2;
+      const cv = mk(W, H), x = cv.getContext('2d'); x.drawImage(im, P, P, mw, mh); const px = x.getImageData(0, 0, W, H).data;
+      let on = 0; const m = new Uint8Array(W * H); for (let i = 0; i < W * H; i++) if (px[i * 4 + 3] > 100) { m[i] = 1; on++; }
+      if (on && on < mw * mh * 0.88) { // clearly not a rectangle
+        const grow = (a) => { const b = new Uint8Array(a); for (let y = 1; y < H - 1; y++) for (let xx = 1; xx < W - 1; xx++) { const i = y * W + xx; if (!a[i] && (a[i - 1] || a[i + 1] || a[i - W] || a[i + W])) b[i] = 1; } return b; };
+        let g = grow(grow(m)); // a little wider than the art, so small gaps close and the rim hides nothing
+        const lab = new Int32Array(W * H), sizes = [0]; let best = 0; // keep the biggest piece
+        for (let i = 0; i < W * H; i++) if (g[i] && !lab[i]) { const id = sizes.length, st = [i]; lab[i] = id; let n = 0; while (st.length) { const j = st.pop(); n++; for (const d of [1, -1, W, -W]) { const q = j + d; if (q >= 0 && q < W * H && g[q] && !lab[q]) { lab[q] = id; st.push(q); } } } sizes.push(n); if (n > sizes[best]) best = id; }
+        const at = (xx, y) => xx >= 0 && y >= 0 && xx < W && y < H && lab[y * W + xx] === best;
+        const N8 = [[-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1]];
+        let s0 = 0; while (lab[s0] !== best) s0++;
+        const sx = s0 % W, sy = (s0 / W) | 0; let cx = sx, cy = sy, bd = 0; const pts = [];
+        for (let step = 0; step < W * H * 2; step++) { // walk round the outside edge
+          pts.push([cx, cy]); let moved = false;
+          for (let i = 1; i <= 8; i++) { const kk = (bd + i) % 8, nx = cx + N8[kk][0], ny = cy + N8[kk][1];
+            if (at(nx, ny)) { const pk = (kk + 7) % 8, bx = cx + N8[pk][0] - nx, by = cy + N8[pk][1] - ny; cx = nx; cy = ny; bd = N8.findIndex((o) => o[0] === bx && o[1] === by); moved = true; break; } }
+          if (!moved || (cx === sx && cy === sy)) break;
+        }
+        const simp = (a, eps) => { if (a.length < 3) return a; let di = 0, dm = 0; const [x1, y1] = a[0], [x2, y2] = a[a.length - 1], L = Math.hypot(x2 - x1, y2 - y1) || 1;
+          for (let i = 1; i < a.length - 1; i++) { const d = Math.abs((x2 - x1) * (y1 - a[i][1]) - (x1 - a[i][0]) * (y2 - y1)) / L; if (d > dm) { dm = d; di = i; } }
+          return dm > eps ? simp(a.slice(0, di + 1), eps).slice(0, -1).concat(simp(a.slice(di), eps)) : [a[0], a[a.length - 1]]; };
+        const half = pts.length >> 1, loop = pts.length > 12 ? simp(pts.slice(0, half + 1), 0.6).slice(0, -1).concat(simp(pts.slice(half), 0.6).slice(0, -1)) : [];
+        if (loop.length > 5) {
+          const U = (xx, y) => [(xx + 0.5 - P) / mw - 0.5, 0.5 - (y + 0.5 - P) / mh];
+          const sh = new THREE.Shape(); loop.forEach(([xx, y], i) => { const [u, v] = U(xx, y); if (i) sh.lineTo(u, v); else sh.moveTo(u, v); });
+          geo = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false }); geo.rotateX(Math.PI / 2);
+          // the edge colours: spread each opaque pixel's colour outward a few steps, then read it under every vertex
+          const col = new Float32Array(W * H * 3), has = new Uint8Array(W * H);
+          let core = m; // look past the sticker's white die-cut border: take colours from a few pixels in, then spread them out to the edge
+          for (let e = 0; e < 7; e++) { const nx2 = new Uint8Array(core); for (let i = W; i < W * H - W; i++) if (core[i] && !(core[i - 1] && core[i + 1] && core[i - W] && core[i + W])) nx2[i] = 0; let left = 0; for (let i = 0; i < W * H; i++) left += nx2[i]; if (left < on * 0.15) break; core = nx2; }
+          for (let i = 0; i < W * H; i++) if (core[i]) { has[i] = 1; col[i * 3] = px[i * 4]; col[i * 3 + 1] = px[i * 4 + 1]; col[i * 3 + 2] = px[i * 4 + 2]; }
+          for (let pass = 0; pass < 16; pass++) { const add = []; for (let i = 0; i < W * H; i++) if (!has[i]) for (const d of [1, -1, W, -W]) { const q = i + d; if (q >= 0 && q < W * H && has[q]) { add.push([i, q]); break; } } add.forEach(([i, q]) => { has[i] = 1; col[i * 3] = col[q * 3]; col[i * 3 + 1] = col[q * 3 + 1]; col[i * 3 + 2] = col[q * 3 + 2]; }); }
+          const pos = geo.attributes.position, nor = geo.attributes.normal, out = new Float32Array(pos.count * 3), c3 = new THREE.Color();
+          for (let i = 0; i < pos.count; i++) {
+            const u = pos.getX(i), v = pos.getZ(i), ix = clamp(Math.round((u + 0.5) * mw + P - 0.5), 0, W - 1), iy = clamp(Math.round((0.5 - v) * mh + P - 0.5), 0, H - 1), j = iy * W + ix;
+            const ny = nor.getY(i), shade = Math.abs(ny) > 0.5 ? 1 : 0.74 + 0.2 * (nor.getZ(i) * 0.8 - nor.getX(i) * 0.6); // sides lit from the upper left
+            c3.setRGB(col[j * 3] / 255 * shade, col[j * 3 + 1] / 255 * shade, col[j * 3 + 2] / 255 * shade).convertSRGBToLinear(); out[i * 3] = c3.r; out[i * 3 + 1] = c3.g; out[i * 3 + 2] = c3.b;
+          }
+          geo.setAttribute('color', new THREE.BufferAttribute(out, 3));
+        }
+      }
+    } catch (err) { geo = null; }
+    outlineG.set(im, geo); return geo;
+  }
   const tileAt = (n) => { if (tiles[n]) return tiles[n]; const outer = new THREE.Group(), inner = new THREE.Group(); outer.add(inner); lid.add(outer);
     const body = new THREE.Mesh(blockOf(1, 1), tileBody.clone()); inner.add(body);
+    const cut = new THREE.Mesh(blockOf(1, 1), new THREE.MeshBasicMaterial({ vertexColors: true })); cut.visible = false; inner.add(cut);
     const face = new THREE.Mesh(unitG, new THREE.MeshBasicMaterial({ transparent: true })); inner.add(face);
-    return (tiles[n] = { outer, inner, body, face, im: null, key: '' }); };
+    return (tiles[n] = { outer, inner, body, cut, face, im: null, key: '', og: null }); };
   const popSheets = popTex.map((tx, i) => Array.from({ length: SLICES[i] }, (_, k) => { const m = add(lid, topGeo, new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false, alphaTest: 0.04, side: THREE.DoubleSide }), 0, -0.032, LZ - 0.05); m.renderOrder = 5 + i * 40 + k; m.visible = false; m.userData.shade = 1; return m; }));
   const dot = new THREE.CircleGeometry(0.07, 14).rotateX(Math.PI / 2), dotM = new THREE.MeshBasicMaterial({ color: 0x2b2e36 });
   for (const sx of [-1, 1]) for (const [dx, dz] of [[0, 0], [0.26, 0], [-0.26, 0], [0, 0.26], [0, -0.26]]) add(lid, dot, dotM, sx * 6.5 + dx, -0.03, LZ - 0.05 + dz);
@@ -2038,7 +2131,8 @@
   canvas.addEventListener('pointerdown', (e) => {
     const p = pick(e);
     if ((!p || p.body) && stow()) return; // a click anywhere off a card that is out puts it back
-    if (p && p.top && S.play && openness() > 0.9 && e.pointerType !== 'touch') { gamePtr('down', p.uv); return; } // click the top screen to play (Bricks, Match, Whack...)
+    if (p && p.top && S.play && openness() > 0.9 && e.pointerType !== 'touch') { gamePtr('down', p.uv); return; }
+    if (p && p.region && p.region.k && S.play && openness() > 0.9) { padHeld = p.region.k; key(padHeld); return; } // the arrows under a game: pressed while held down // click the top screen to play (Bricks, Match, Whack...)
     if (p && p.top && padMax > 0 && openness() > 0.9) { padDrag = { y: e.clientY, s: padScroll }; canvas.setPointerCapture(e.pointerId); return; } // phone: drag the top screen to scroll its page
     if (p && p.slider) { sliding = true; slideTo(e); canvas.setPointerCapture(e.pointerId); return; }
     if (p && p.button) { p.button.userData.press = 1; key(p.button.userData.key, p.button.userData.code); return; }
@@ -2080,7 +2174,8 @@
       return;
     }
     const p = pick(e);
-    canvas.classList.toggle('grab', !!p);
+    const inGame = !!(p && (p.top || p.screen) && S.play && openness() > 0.9); // over a game being played: an ordinary cursor, not the grab hand
+    canvas.classList.toggle('grab', !!p && !inGame); canvas.classList.toggle('ingame', inGame);
     { const hv = p && p.prop && p.prop.userData.hover ? p.prop : null; if (lastHover && lastHover !== hv) lastHover.userData.hover(null); if (hv) hv.userData.hover(p.uv); lastHover = hv; }
     if (!p) { hover.x = 0; hover.y = 0; } // off the console: no tilt either
     if (p && p.region && p.region.home !== undefined && !S.sec && S.home !== p.region.home && !isBooting()) { S.home = p.region.home; redraw(); }
@@ -2090,7 +2185,9 @@
   });
   function setHot(h) { if (S.hot !== h && S.booted && !isBooting()) { S.hot = h; drawBottom(); } } // every button on the touch screen lights up under the pointer, not just the home icons
   canvas.addEventListener('pointerleave', () => setHot(''));
+  let padHeld = null;
   const endDrag = (e) => {
+    if (S.play && S.play.inst.release) { S.play.inst.release('ptr'); if (padHeld) S.play.inst.release(padHeld); } padHeld = null;
     if (swipe) { // no travel means it was a tap: press whatever is under it, or restart after a game over
       const w = swipe; swipe = null; try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
       if (!w.moved) { if (w.region) w.region.fn(); else if (w.top) gamePtr('down', w.uv); else key('a'); }
@@ -2129,6 +2226,9 @@
     if (b) b.userData.press = 1;
     key(k);
   });
+  const letGo = (k) => { if (S.play && S.play.inst.release) S.play.inst.release(k); }; // a game that steers while a button is held (Goose Kart) hears it let go
+  addEventListener('keyup', (e) => { const k = KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key]; if (k) letGo(k); });
+  addEventListener('blur', () => letGo('all'));
 
   /* ======================= boot + loop ======================= */
   const t0 = performance.now();
@@ -2173,12 +2273,14 @@
       // the stickers: solid tiles standing off the glass, each leaning and turning a little so their sides catch the eye even head-on
       const rv = Math.max(0, rise[1].v) * up, tt = now / 1000;
       grabbed.forEach((g, n) => { const T = tileAt(n), top = 2.6 * rv, thick = 0.55 * rv, f = 1 - top / Math.max(10, dist), w = g.w / TW * 10.9 * f, hh = g.h / TH * 6.54 * f;
-        if (T.im !== g.im) { T.im = g.im; T.face.material.map = texOf(g.im); T.face.material.needsUpdate = true; }
+        if (T.im !== g.im) { T.im = g.im; T.face.material.map = texOf(g.im); T.face.material.needsUpdate = true; T.og = outlineOf(g.im); if (T.og) T.cut.geometry = T.og; }
         const key = (w * 20 | 0) + 'x' + (hh * 20 | 0); if (T.key !== key) { T.key = key; T.body.geometry = blockOf(w, hh); }
         T.outer.visible = popped; T.outer.position.set((g.X / TW - 0.5) * 10.9 * f, -0.032 - Math.max(0.004, top - thick), LZ - 0.05 + (0.5 - g.Y / TH) * 6.54 * f);
         T.outer.rotation.set(((n % 3) - 1) * 0.07 * rv, 0, ((n % 2) ? 0.08 : -0.08) * rv); T.inner.rotation.y = -g.rot; // a slight fixed lean, so the sides show; no constant wobble
         T.body.scale.set(1, Math.max(0.001, thick), 1); T.body.material.color.setHex(0xdcdfe4).multiplyScalar(lit); T.body.material.opacity = g.a; T.body.material.transparent = g.a < 0.99;
-        T.face.scale.set(w * 1.02, 1, hh * 1.02); T.face.position.y = -thick - 0.006; T.face.material.opacity = g.a; T.face.material.color.setScalar(lit); });
+        T.body.visible = !T.og; T.cut.visible = !!T.og;
+        if (T.og) { T.cut.scale.set(w, Math.max(0.001, thick), hh); T.cut.material.color.setScalar(lit); T.cut.material.opacity = g.a; T.cut.material.transparent = g.a < 0.99; }
+        T.face.scale.set(w * (T.og ? 1 : 1.02), 1, hh * (T.og ? 1 : 1.02)); T.face.position.y = -thick - 0.006; T.face.material.opacity = g.a; T.face.material.color.setScalar(lit); });
       for (let n = grabbed.length; n < tiles.length; n++) tiles[n].outer.visible = false; }
     if (S.play && S.booted) { S.play.inst.step(dt); drawTop(); const hh = S.play.inst.hud().join('|'); if (hh !== S.play.hud) drawBottom(); }
     else if (!reduced && S.booted && lit > 0.05) { // the top screen is alive

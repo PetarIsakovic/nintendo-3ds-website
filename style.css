@@ -25,6 +25,7 @@ body::before {
 #gl.grab { cursor: grab; }
 #gl.grabbing { cursor: grabbing; }
 #gl.point { cursor: pointer; }
+#gl.ingame:not(.point) { cursor: default; }
 
 .hud { position: fixed; left: 0; right: 0; z-index: 2; pointer-events: none; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; opacity: 0; animation: fade .9s ease .5s forwards; }
 .hud a, .hud h1 { pointer-events: auto; }
