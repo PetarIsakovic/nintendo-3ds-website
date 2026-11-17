@@ -242,6 +242,11 @@ html.dev .os.on .os-boot p { animation: osBlink .5s steps(1) 1.6s 3, osIn .01s l
 .os-snakev .os-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 10px 10px !important; }
 .os-snakev .os-score { flex: none; align-items: center; margin-bottom: 6px; font-size: 13px; } .os-snakev .os-score span { flex-direction: row; align-items: baseline; gap: 4px; }
 .os-snakev .os-score b { font-size: 15px; line-height: 1.2; } .os-snakev .os-score small { font-size: 13px; }
+/* while a game is open: no status bar and no score row (every game draws its own score), slim header, thin margins */
+.os.gaming .os-bar { display: none; }
+.os-snakev .os-score { display: none; }
+.os-snakev .os-head { padding: 3px 6px; }
+.os-snakev .os-body { padding: 4px !important; }
 .os-gwrap { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; }
 .os-gwrap .os-game { position: absolute; inset: 0; margin: auto; width: auto; height: auto; max-width: 100%; max-height: 100%; border-radius: 10px; } /* out of the flow, so the board can never push the layout taller than the screen */
 .os-gwrap .os-gmsg { position: absolute; left: 0; right: 0; top: 27%; transform: translateY(-50%); margin: 0; min-height: 0; pointer-events: none; font-weight: 600; color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 8px #fff; }

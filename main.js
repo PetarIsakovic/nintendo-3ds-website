@@ -149,13 +149,15 @@
     const stack = [];
     function push(v) {
       const prev = stack[stack.length - 1]; v.classList.add('right'); stage.append(v); void v.offsetWidth; v.classList.remove('right');
-      if (prev) prev.classList.add('left'); stack.push(v); setFoc(-1);
+      if (prev) prev.classList.add('left'); stack.push(v); setFoc(-1); gaming();
       if (stack.length > 1) history.pushState({ depth: stack.length }, '');
     }
     function pop() {
       if (stack.length < 2) return; const v = stack.pop(), prev = stack[stack.length - 1];
-      if (v.leave) v.leave(); v.classList.add('right'); prev.classList.remove('left'); setTimeout(() => v.remove(), 380); setFoc(-1);
+      if (v.leave) v.leave(); v.classList.add('right'); prev.classList.remove('left'); setTimeout(() => v.remove(), 380); setFoc(-1); gaming();
     }
+    // while a game is open the status bar steps aside, so the game gets as much of the little screen as possible
+    function gaming() { const v = stack[stack.length - 1]; os.classList.toggle('gaming', !!v && v.classList.contains('os-snakev')); }
     addEventListener('popstate', (e) => { const d = (e.state && e.state.depth) || 1; while (stack.length > d) pop(); });
     // the device's buttons drive the same screens: the D-pad moves a highlight (or scrolls a page), A opens, B goes back, START goes home
     let foc = -1;
@@ -250,9 +252,9 @@
     function gameView(g) {
       const cv = h('canvas', 'os-game'), c = cv.getContext('2d'), L = t('b', '', ''), R = t('span', '', ''), wrap = h('div', 'os-gwrap', [cv]);
       const v = view(g.name, '', [h('div', 'os-score', [L, R]), wrap]); v.classList.add('os-snakev', 'os-nosel');
-      const inst = g.make(genv); let W = 0, H = 0, raf = 0, last = 0, hud = '';
+      const inst = g.make(genv); let W = 0, H = 0, raf = 0, last = 0, hud = '', started = false;
       const size = () => { const w = Math.floor(wrap.clientWidth), hh = Math.floor(wrap.clientHeight); if (!w || !hh || (w === W && hh === H)) return; const d = Math.min(2, devicePixelRatio || 1); W = w; H = hh; cv.width = W * d; cv.height = H * d; cv.style.width = W + 'px'; cv.style.height = H + 'px'; c.setTransform(d, 0, 0, d, 0, 0); inst.resize(W, H); };
-      const loop = (now) => { raf = requestAnimationFrame(loop); if (!W) { size(); if (!W) return; inst.reset(); inst.key('a'); if (inst.release) inst.release('a'); last = now; } const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const loop = (now) => { raf = requestAnimationFrame(loop); size(); if (!W) return; if (!started) { started = true; inst.reset(); inst.key('a'); if (inst.release) inst.release('a'); last = now; } const dt = Math.min(0.05, (now - last) / 1000); last = now;
         inst.step(dt); inst.draw(c, now / 1000); const hh = inst.hud(); if (hh.join('|') !== hud) { hud = hh.join('|'); L.textContent = hh[0]; R.textContent = hh[1]; } };
       raf = requestAnimationFrame(loop); v.leave = () => cancelAnimationFrame(raf);
       const at = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
